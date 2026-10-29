@@ -13,7 +13,8 @@ type Props = {
   onSelectZone: (zone: RestaurantZone) => void;
 };
 
-const ROOM = { cx: 0, cz: -0.2, halfX: 3.5, halfZ: 3.0 };
+/** Larger open floor plan so props/hotspots breathe */
+const ROOM = { cx: 0, cz: 0.2, halfX: 5.6, halfZ: 5.0 };
 
 function ClayFloor({
   position,
@@ -33,11 +34,12 @@ function ClayFloor({
       receiveShadow
       castShadow
     >
-      <meshStandardMaterial color={color} roughness={0.4} metalness={0.06} />
+      <meshStandardMaterial color={color} roughness={0.55} metalness={0.02} />
     </RoundedBox>
   );
 }
 
+/** Hide wall when camera is outside that face — snap opaque ↔ gone (no hazy mid fade). */
 function SmartWall({
   position,
   args,
@@ -51,35 +53,37 @@ function SmartWall({
   color: string;
   accent?: boolean;
 }) {
-  const mat = useRef<THREE.MeshStandardMaterial>(null);
+  const mesh = useRef<THREE.Mesh>(null);
   const { camera } = useThree();
   const out = useMemo(() => new THREE.Vector3(...outward).normalize(), [outward]);
 
   useFrame(() => {
-    if (!mat.current) return;
+    if (!mesh.current) return;
     const fromCenter = new THREE.Vector3(
       camera.position.x - ROOM.cx,
       0,
       camera.position.z - ROOM.cz
     ).normalize();
     const outside = fromCenter.dot(out);
-    const target = outside > 0.1 ? 0 : outside > -0.08 ? 0.28 : 0.92;
-    mat.current.opacity = THREE.MathUtils.lerp(mat.current.opacity, target, 0.16);
-    mat.current.transparent = true;
-    mat.current.depthWrite = mat.current.opacity > 0.55;
+    mesh.current.visible = outside < 0.05;
   });
 
   return (
-    <RoundedBox position={position} args={args} radius={0.05} smoothness={3} castShadow>
+    <RoundedBox
+      ref={mesh}
+      position={position}
+      args={args}
+      radius={0.05}
+      smoothness={3}
+      castShadow
+      receiveShadow
+    >
       <meshStandardMaterial
-        ref={mat}
         color={accent ? "#ea580c" : color}
-        roughness={0.48}
-        metalness={0.04}
-        transparent
-        opacity={0.92}
+        roughness={0.55}
+        metalness={0.02}
         emissive={accent ? "#c2410c" : "#000000"}
-        emissiveIntensity={accent ? 0.35 : 0}
+        emissiveIntensity={accent ? 0.28 : 0}
       />
     </RoundedBox>
   );
@@ -100,15 +104,15 @@ function SelectableWallPanel({
   useFrame(({ clock }) => {
     if (!ref.current) return;
     const mat = ref.current.material as THREE.MeshStandardMaterial;
-    const pulse = hasWork ? 0.25 + Math.sin(clock.getElapsedTime() * 2.2) * 0.15 : 0;
-    mat.emissiveIntensity = selected ? 0.55 : hovered ? 0.35 : pulse;
+    const pulse = hasWork ? 0.22 + Math.sin(clock.getElapsedTime() * 2.2) * 0.12 : 0;
+    mat.emissiveIntensity = selected ? 0.5 : hovered ? 0.32 : pulse;
   });
 
   return (
     <RoundedBox
       ref={ref}
-      position={[0, 1.05, 2.72]}
-      args={[1.9, 1.85, 0.12]}
+      position={[0, 1.15, ROOM.cz + ROOM.halfZ - 0.08]}
+      args={[2.4, 2.0, 0.14]}
       radius={0.08}
       smoothness={3}
       castShadow
@@ -128,9 +132,9 @@ function SelectableWallPanel({
     >
       <meshStandardMaterial
         color={hasWork || selected ? "#ea580c" : "#ffedd5"}
-        roughness={0.45}
+        roughness={0.5}
         emissive={hasWork || selected || hovered ? "#c2410c" : "#000000"}
-        emissiveIntensity={hasWork ? 0.3 : 0}
+        emissiveIntensity={hasWork ? 0.25 : 0}
       />
     </RoundedBox>
   );
@@ -151,33 +155,36 @@ export function RestaurantBuilding({
 
   return (
     <group>
-      <ClayFloor position={[0, -0.32, 0.35]} args={[10.5, 0.5, 11.5]} color="#292524" />
-      <ClayFloor position={[0, -0.04, 0.35]} args={[9.8, 0.12, 10.8]} color="#44403c" />
-      <ClayFloor position={[0, 0.05, -0.2]} args={[7.0, 0.1, 6.0]} color="#f5e6d0" />
-      <ClayFloor position={[0.6, 0.06, 4.15]} args={[4.2, 0.1, 2.3]} color="#57534e" />
+      {/* Pedestal */}
+      <ClayFloor position={[0, -0.34, 1.0]} args={[16, 0.5, 18]} color="#292524" />
+      <ClayFloor position={[0, -0.05, 1.0]} args={[15, 0.12, 17]} color="#44403c" />
+      {/* Interior floor */}
+      <ClayFloor position={[0, 0.05, ROOM.cz]} args={[11.2, 0.1, 10.0]} color="#f5e6d0" />
+      {/* Exterior deck */}
+      <ClayFloor position={[0.6, 0.06, 7.0]} args={[6.5, 0.1, 3.4]} color="#57534e" />
 
       <SmartWall
-        position={[0, 1.2, ROOM.cz + ROOM.halfZ]}
-        args={[7.0, 2.35, 0.14]}
+        position={[0, 1.25, ROOM.cz + ROOM.halfZ]}
+        args={[11.2, 2.45, 0.14]}
         outward={[0, 0, 1]}
         color="#f3e7d6"
         accent={wallWork || focusedZone === "pared_entrada"}
       />
       <SmartWall
-        position={[0, 1.2, ROOM.cz - ROOM.halfZ]}
-        args={[7.0, 2.35, 0.14]}
+        position={[0, 1.25, ROOM.cz - ROOM.halfZ]}
+        args={[11.2, 2.45, 0.14]}
         outward={[0, 0, -1]}
         color="#efe2cf"
       />
       <SmartWall
-        position={[-ROOM.halfX, 1.2, ROOM.cz]}
-        args={[0.14, 2.35, 6.0]}
+        position={[-ROOM.halfX, 1.25, ROOM.cz]}
+        args={[0.14, 2.45, 10.0]}
         outward={[-1, 0, 0]}
         color="#f0e4d2"
       />
       <SmartWall
-        position={[ROOM.halfX, 1.2, ROOM.cz]}
-        args={[0.14, 2.35, 6.0]}
+        position={[ROOM.halfX, 1.25, ROOM.cz]}
+        args={[0.14, 2.45, 10.0]}
         outward={[1, 0, 0]}
         color="#f0e4d2"
       />
@@ -188,87 +195,81 @@ export function RestaurantBuilding({
         onSelect={() => onSelectZone("pared_entrada")}
       />
 
-      <RoundedBox position={[0, 2.25, 2.45]} args={[4.4, 0.14, 1.15]} radius={0.07} castShadow>
-        <meshStandardMaterial color="#f97316" roughness={0.4} />
+      {/* Awning lip only — not a roof */}
+      <RoundedBox position={[0, 2.35, 4.55]} args={[5.2, 0.14, 1.35]} radius={0.07} castShadow>
+        <meshStandardMaterial color="#f97316" roughness={0.45} />
       </RoundedBox>
 
-      {/* Salón */}
-      <KenneyProp name="tableCloth" zone="salon" position={[-0.7, 0.1, 0.9]} scale={1.15} selected={focusedZone === "salon"} hasWork={salonWork} onSelect={onSelectZone} />
-      <KenneyProp name="chairRounded" zone="salon" position={[-1.35, 0.1, 0.9]} rotation={[0, Math.PI / 2, 0]} scale={1.05} selected={focusedZone === "salon"} hasWork={salonWork} onSelect={onSelectZone} />
-      <KenneyProp name="chairRounded" zone="salon" position={[-0.05, 0.1, 0.9]} rotation={[0, -Math.PI / 2, 0]} scale={1.05} selected={focusedZone === "salon"} hasWork={salonWork} onSelect={onSelectZone} />
-      <KenneyProp name="tableRound" zone="salon" position={[1.25, 0.1, 0.55]} scale={1.2} selected={focusedZone === "salon"} hasWork={salonWork} onSelect={onSelectZone} />
-      <KenneyProp name="chair" zone="salon" position={[1.25, 0.1, 1.15]} scale={1.05} selected={focusedZone === "salon"} hasWork={salonWork} onSelect={onSelectZone} />
-      <KenneyProp name="tableCross" zone="salon" position={[0.35, 0.1, 1.75]} scale={1.1} selected={focusedZone === "salon"} hasWork={salonWork} onSelect={onSelectZone} />
-      <KenneyProp name="chairCushion" zone="salon" position={[0.95, 0.1, 1.75]} rotation={[0, -Math.PI / 2, 0]} scale={1.05} selected={focusedZone === "salon"} hasWork={salonWork} onSelect={onSelectZone} />
+      {/* ——— SALÓN (spaced tables) ——— */}
+      <KenneyProp name="tableCloth" zone="salon" position={[-1.9, 0.1, 1.4]} scale={1.15} selected={focusedZone === "salon"} hasWork={salonWork} onSelect={onSelectZone} />
+      <KenneyProp name="chairRounded" zone="salon" position={[-2.7, 0.1, 1.4]} rotation={[0, Math.PI / 2, 0]} scale={1.05} selected={focusedZone === "salon"} hasWork={salonWork} onSelect={onSelectZone} />
+      <KenneyProp name="chairRounded" zone="salon" position={[-1.1, 0.1, 1.4]} rotation={[0, -Math.PI / 2, 0]} scale={1.05} selected={focusedZone === "salon"} hasWork={salonWork} onSelect={onSelectZone} />
 
-      {/* Barra */}
-      <KenneyProp name="kitchenBar" zone="barra" position={[-2.25, 0.1, 0.2]} rotation={[0, Math.PI / 2, 0]} scale={1.25} selected={focusedZone === "barra"} hasWork={barraWork} onSelect={onSelectZone} workColor="#c2410c" />
-      <KenneyProp name="kitchenBarEnd" zone="barra" position={[-2.25, 0.1, 1.35]} rotation={[0, Math.PI / 2, 0]} scale={1.2} selected={focusedZone === "barra"} hasWork={barraWork} onSelect={onSelectZone} workColor="#c2410c" />
-      <KenneyProp name="stoolBar" zone="barra" position={[-1.45, 0.1, 0.0]} scale={1.1} selected={focusedZone === "barra"} hasWork={barraWork} onSelect={onSelectZone} />
-      <KenneyProp name="stoolBarSquare" zone="barra" position={[-1.45, 0.1, 0.75]} scale={1.1} selected={focusedZone === "barra"} hasWork={barraWork} onSelect={onSelectZone} />
-      <KenneyProp name="kitchenCoffeeMachine" zone="barra" position={[-2.25, 0.95, -0.55]} scale={1.15} selected={focusedZone === "barra"} hasWork={barraWork} onSelect={onSelectZone} />
+      <KenneyProp name="tableRound" zone="salon" position={[1.9, 0.1, 0.3]} scale={1.2} selected={focusedZone === "salon"} hasWork={salonWork} onSelect={onSelectZone} />
+      <KenneyProp name="chair" zone="salon" position={[1.9, 0.1, 1.15]} scale={1.05} selected={focusedZone === "salon"} hasWork={salonWork} onSelect={onSelectZone} />
+      <KenneyProp name="chair" zone="salon" position={[1.9, 0.1, -0.55]} rotation={[0, Math.PI, 0]} scale={1.05} selected={focusedZone === "salon"} hasWork={salonWork} onSelect={onSelectZone} />
 
-      {/* Cocina */}
-      <KenneyProp name="kitchenCabinet" zone="cocina" position={[-1.1, 0.1, -2.35]} scale={1.2} selected={focusedZone === "cocina"} hasWork={cocinaWork} onSelect={onSelectZone} workColor="#ea580c" />
-      <KenneyProp name="kitchenCabinetDrawer" zone="cocina" position={[0.1, 0.1, -2.35]} scale={1.2} selected={focusedZone === "cocina"} hasWork={cocinaWork} onSelect={onSelectZone} workColor="#ea580c" />
-      <KenneyProp name="kitchenSink" zone="cocina" position={[1.2, 0.1, -2.35]} scale={1.15} selected={focusedZone === "cocina"} hasWork={cocinaWork} onSelect={onSelectZone} workColor="#ea580c" />
-      <KenneyProp name="kitchenFridge" zone="cocina" position={[-2.35, 0.1, -2.2]} rotation={[0, Math.PI / 2, 0]} scale={1.25} selected={focusedZone === "cocina"} hasWork={cocinaWork} onSelect={onSelectZone} workColor="#ea580c" />
-      <KenneyProp name="kitchenStove" zone="cocina" position={[2.2, 0.1, -2.3]} scale={1.15} selected={focusedZone === "cocina"} hasWork={cocinaWork} onSelect={onSelectZone} workColor="#ea580c" />
-      <KenneyProp name="kitchenMicrowave" zone="cocina" position={[0.1, 1.05, -2.35]} scale={1.1} selected={focusedZone === "cocina"} hasWork={cocinaWork} onSelect={onSelectZone} />
-      <KenneyProp name="kitchenBlender" zone="cocina" position={[1.55, 1.0, -2.2]} scale={1.2} selected={focusedZone === "cocina"} hasWork={cocinaWork} onSelect={onSelectZone} />
+      <KenneyProp name="tableCross" zone="salon" position={[0.15, 0.1, 2.85]} scale={1.1} selected={focusedZone === "salon"} hasWork={salonWork} onSelect={onSelectZone} />
+      <KenneyProp name="chairCushion" zone="salon" position={[0.95, 0.1, 2.85]} rotation={[0, -Math.PI / 2, 0]} scale={1.05} selected={focusedZone === "salon"} hasWork={salonWork} onSelect={onSelectZone} />
+      <KenneyProp name="chairCushion" zone="salon" position={[-0.65, 0.1, 2.85]} rotation={[0, Math.PI / 2, 0]} scale={1.05} selected={focusedZone === "salon"} hasWork={salonWork} onSelect={onSelectZone} />
+      <KenneyProp name="plantSmall2" zone="salon" position={[3.3, 0.1, 1.6]} scale={1.1} selected={focusedZone === "salon"} hasWork={salonWork} onSelect={onSelectZone} />
+
+      {/* ——— BARRA (left wing) ——— */}
+      <KenneyProp name="kitchenBar" zone="barra" position={[-4.0, 0.1, -0.3]} rotation={[0, Math.PI / 2, 0]} scale={1.25} selected={focusedZone === "barra"} hasWork={barraWork} onSelect={onSelectZone} workColor="#c2410c" />
+      <KenneyProp name="kitchenBarEnd" zone="barra" position={[-4.0, 0.1, 1.3]} rotation={[0, Math.PI / 2, 0]} scale={1.2} selected={focusedZone === "barra"} hasWork={barraWork} onSelect={onSelectZone} workColor="#c2410c" />
+      <KenneyProp name="stoolBar" zone="barra" position={[-2.95, 0.1, -0.5]} scale={1.1} selected={focusedZone === "barra"} hasWork={barraWork} onSelect={onSelectZone} />
+      <KenneyProp name="stoolBarSquare" zone="barra" position={[-2.95, 0.1, 0.55]} scale={1.1} selected={focusedZone === "barra"} hasWork={barraWork} onSelect={onSelectZone} />
+      <KenneyProp name="stoolBar" zone="barra" position={[-2.95, 0.1, 1.5]} scale={1.1} selected={focusedZone === "barra"} hasWork={barraWork} onSelect={onSelectZone} />
+      <KenneyProp name="kitchenCoffeeMachine" zone="barra" position={[-4.0, 0.95, -1.3]} scale={1.15} selected={focusedZone === "barra"} hasWork={barraWork} onSelect={onSelectZone} />
+
+      {/* ——— COCINA (back wall run) ——— */}
+      <KenneyProp name="kitchenFridge" zone="cocina" position={[-3.6, 0.1, -4.0]} rotation={[0, Math.PI / 2, 0]} scale={1.25} selected={focusedZone === "cocina"} hasWork={cocinaWork} onSelect={onSelectZone} workColor="#ea580c" />
+      <KenneyProp name="kitchenCabinet" zone="cocina" position={[-1.8, 0.1, -4.15]} scale={1.2} selected={focusedZone === "cocina"} hasWork={cocinaWork} onSelect={onSelectZone} workColor="#ea580c" />
+      <KenneyProp name="kitchenCabinetDrawer" zone="cocina" position={[-0.2, 0.1, -4.15]} scale={1.2} selected={focusedZone === "cocina"} hasWork={cocinaWork} onSelect={onSelectZone} workColor="#ea580c" />
+      <KenneyProp name="kitchenSink" zone="cocina" position={[1.5, 0.1, -4.15]} scale={1.15} selected={focusedZone === "cocina"} hasWork={cocinaWork} onSelect={onSelectZone} workColor="#ea580c" />
+      <KenneyProp name="kitchenStove" zone="cocina" position={[3.3, 0.1, -4.1]} scale={1.15} selected={focusedZone === "cocina"} hasWork={cocinaWork} onSelect={onSelectZone} workColor="#ea580c" />
+      <KenneyProp name="kitchenMicrowave" zone="cocina" position={[-0.2, 1.05, -4.15]} scale={1.1} selected={focusedZone === "cocina"} hasWork={cocinaWork} onSelect={onSelectZone} />
+      <KenneyProp name="kitchenBlender" zone="cocina" position={[2.0, 1.0, -3.95]} scale={1.2} selected={focusedZone === "cocina"} hasWork={cocinaWork} onSelect={onSelectZone} />
       {cocinaWork && (
         <>
-          <KenneyProp name="cardboardBoxOpen" zone="cocina" position={[0.7, 0.1, -1.55]} scale={1.1} selected={focusedZone === "cocina"} hasWork onSelect={onSelectZone} workColor="#ea580c" />
-          <KenneyProp name="cardboardBoxClosed" zone="cocina" position={[1.25, 0.1, -1.45]} rotation={[0, 0.4, 0]} scale={1.0} selected={focusedZone === "cocina"} hasWork onSelect={onSelectZone} workColor="#ea580c" />
+          <KenneyProp name="cardboardBoxOpen" zone="cocina" position={[0.6, 0.1, -2.7]} scale={1.1} selected={focusedZone === "cocina"} hasWork onSelect={onSelectZone} workColor="#ea580c" />
+          <KenneyProp name="cardboardBoxClosed" zone="cocina" position={[1.4, 0.1, -2.5]} rotation={[0, 0.4, 0]} scale={1.0} selected={focusedZone === "cocina"} hasWork onSelect={onSelectZone} workColor="#ea580c" />
         </>
       )}
 
-      {/* Baño */}
-      <KenneyProp name="bathroomSink" zone="bano" position={[2.55, 0.1, -1.55]} scale={1.2} selected={focusedZone === "bano"} hasWork={banoWork} onSelect={onSelectZone} workColor="#0ea5e9" />
-      <RoundedBox
-        position={[2.55, 0.95, -1.55]}
-        args={[1.5, 1.7, 1.5]}
-        radius={0.1}
-        onClick={(e) => {
-          e.stopPropagation();
-          onSelectZone("bano");
-        }}
-      >
-        <meshStandardMaterial
-          color={banoWork || focusedZone === "bano" ? "#7dd3fc" : "#e0f2fe"}
-          transparent
-          opacity={0.35}
-          roughness={0.35}
-        />
+      {/* ——— BAÑO (right rear corner, opaque stall — no translucent fog box) ——— */}
+      <RoundedBox position={[4.4, 1.1, -2.6]} args={[2.0, 2.15, 2.2]} radius={0.08} castShadow receiveShadow>
+        <meshStandardMaterial color="#e7f5fe" roughness={0.55} />
       </RoundedBox>
+      <KenneyProp name="bathroomSink" zone="bano" position={[4.4, 0.1, -2.2]} scale={1.2} selected={focusedZone === "bano"} hasWork={banoWork} onSelect={onSelectZone} workColor="#0ea5e9" />
 
-      {/* Oficina */}
-      <KenneyProp name="desk" zone="oficina" position={[2.5, 0.1, 1.35]} rotation={[0, -Math.PI / 2, 0]} scale={1.15} selected={focusedZone === "oficina"} hasWork={oficinaWork} onSelect={onSelectZone} workColor="#78716c" />
-      <KenneyProp name="chairDesk" zone="oficina" position={[2.5, 0.1, 2.0]} scale={1.05} selected={focusedZone === "oficina"} hasWork={oficinaWork} onSelect={onSelectZone} workColor="#78716c" />
+      {/* ——— OFICINA (right front) ——— */}
+      <KenneyProp name="desk" zone="oficina" position={[4.3, 0.1, 2.3]} rotation={[0, -Math.PI / 2, 0]} scale={1.15} selected={focusedZone === "oficina"} hasWork={oficinaWork} onSelect={onSelectZone} workColor="#78716c" />
+      <KenneyProp name="chairDesk" zone="oficina" position={[4.3, 0.1, 3.15]} scale={1.05} selected={focusedZone === "oficina"} hasWork={oficinaWork} onSelect={onSelectZone} workColor="#78716c" />
 
-      {/* Exterior */}
-      <KenneyProp name="tableRound" zone="exterior" position={[0.7, 0.12, 4.15]} scale={1.15} selected={focusedZone === "exterior"} hasWork={exteriorWork} onSelect={onSelectZone} workColor="#65a30d" />
-      <KenneyProp name="chair" zone="exterior" position={[1.35, 0.12, 4.15]} rotation={[0, -Math.PI / 2, 0]} scale={1.05} selected={focusedZone === "exterior"} hasWork={exteriorWork} onSelect={onSelectZone} workColor="#65a30d" />
-      <KenneyProp name="chair" zone="exterior" position={[0.05, 0.12, 4.15]} rotation={[0, Math.PI / 2, 0]} scale={1.05} selected={focusedZone === "exterior"} hasWork={exteriorWork} onSelect={onSelectZone} workColor="#65a30d" />
-      <KenneyProp name="pottedPlant" zone="exterior" position={[2.25, 0.12, 4.4]} scale={1.2} selected={focusedZone === "exterior"} hasWork={exteriorWork} onSelect={onSelectZone} workColor="#65a30d" />
-      <KenneyProp name="plantSmall1" zone="exterior" position={[-1.5, 0.12, 3.7]} scale={1.15} selected={focusedZone === "exterior"} hasWork={exteriorWork} onSelect={onSelectZone} workColor="#65a30d" />
-      <KenneyProp name="plantSmall2" zone="salon" position={[2.7, 0.1, 0.2]} scale={1.1} selected={focusedZone === "salon"} hasWork={salonWork} onSelect={onSelectZone} />
+      {/* ——— EXTERIOR terrace ——— */}
+      <KenneyProp name="tableRound" zone="exterior" position={[0.6, 0.12, 6.9]} scale={1.15} selected={focusedZone === "exterior"} hasWork={exteriorWork} onSelect={onSelectZone} workColor="#65a30d" />
+      <KenneyProp name="chair" zone="exterior" position={[1.45, 0.12, 6.9]} rotation={[0, -Math.PI / 2, 0]} scale={1.05} selected={focusedZone === "exterior"} hasWork={exteriorWork} onSelect={onSelectZone} workColor="#65a30d" />
+      <KenneyProp name="chair" zone="exterior" position={[-0.25, 0.12, 6.9]} rotation={[0, Math.PI / 2, 0]} scale={1.05} selected={focusedZone === "exterior"} hasWork={exteriorWork} onSelect={onSelectZone} workColor="#65a30d" />
+      <KenneyProp name="pottedPlant" zone="exterior" position={[2.8, 0.12, 7.3]} scale={1.2} selected={focusedZone === "exterior"} hasWork={exteriorWork} onSelect={onSelectZone} workColor="#65a30d" />
+      <KenneyProp name="plantSmall1" zone="exterior" position={[-2.2, 0.12, 6.2]} scale={1.15} selected={focusedZone === "exterior"} hasWork={exteriorWork} onSelect={onSelectZone} workColor="#65a30d" />
 
+      {/* Crisp hanging bulbs (no fog-like volume lights) */}
       {[
-        [-0.7, 0.9],
-        [1.25, 0.55],
-        [0.35, 1.75],
+        [-1.9, 1.4],
+        [1.9, 0.3],
+        [0.15, 2.85],
       ].map(([x, z], i) => (
         <group key={i} position={[x, 0, z]}>
-          <mesh position={[0, 2.15, 0]}>
-            <cylinderGeometry args={[0.012, 0.012, 0.5, 8]} />
+          <mesh position={[0, 2.2, 0]}>
+            <cylinderGeometry args={[0.012, 0.012, 0.45, 8]} />
             <meshStandardMaterial color="#a8a29e" />
           </mesh>
-          <mesh position={[0, 1.82, 0]} castShadow>
-            <sphereGeometry args={[0.14, 16, 16]} />
-            <meshStandardMaterial color="#ffedd5" emissive="#fdba74" emissiveIntensity={0.7} />
+          <mesh position={[0, 1.9, 0]} castShadow>
+            <sphereGeometry args={[0.12, 16, 16]} />
+            <meshStandardMaterial color="#fff7ed" emissive="#fdba74" emissiveIntensity={0.55} />
           </mesh>
-          <pointLight position={[0, 1.7, 0]} intensity={0.4} distance={4} color="#ffd7a8" />
+          <pointLight position={[0, 1.75, 0]} intensity={0.28} distance={3.5} color="#ffe4c4" />
         </group>
       ))}
     </group>
