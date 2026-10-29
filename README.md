@@ -1,8 +1,8 @@
 # Crunchadmin
 
-Centro operativo del restaurante: **pendientes**, **recetas con versiones y escalado**, **menú multi-plataforma** (Foodie / tienda propia) y **chat** multimodal.
+Centro operativo del restaurante: **mapa 3D interactivo del local**, **pendientes por zona**, **recetas con versiones y escalado**, **menú multi-plataforma** (Foodie / tienda propia) y **chat** multimodal.
 
-MVP en español sobre Next.js App Router + TypeScript + Tailwind + Prisma (SQLite local).
+MVP en español sobre Next.js App Router + TypeScript + Tailwind + Prisma (SQLite local) + React Three Fiber.
 
 ## Arranque rápido
 
@@ -14,7 +14,11 @@ npm run db:seed
 npm run dev
 ```
 
-Abre [http://localhost:3000](http://localhost:3000).
+Abre [http://localhost:3000](http://localhost:3000) — la home es el **restaurante cartoon 3D** (girar / zoom / tocar zonas).
+
+## Home 3D (zonas)
+
+Pendientes llevan un campo `zone` (`pared_entrada`, `cocina`, `salon`, `barra`, `exterior`, `bano`, `oficina`). En el mapa 3D aparecen como hotspots; al tocar una zona se abre un panel con sus tareas (p. ej. “pintar la pared de entrada de rojo” ilumina la fachada). Sin ubicación física → `oficina`.
 
 ## Scripts
 
@@ -28,7 +32,8 @@ Abre [http://localhost:3000](http://localhost:3000).
 
 ## Módulos
 
-- **Pendientes** — CRUD por categoría (mejoras físicas, compras, planes, insumos, nuevas recetas), estado y prioridad.
+- **Inicio 3D** — escena low-poly con auto-rotación, órbita táctil y pendientes anclados a zonas.
+- **Pendientes** — CRUD por categoría + selector de zona; filtros por zona.
 - **Recetas** — ficha + versiones; **escalado** desde rendimiento o cualquier ingrediente base (conversión g/kg, ml/L).
 - **Menú** — ítem base + specs Foodie / tienda propia (pestañas).
 - **Chat** — texto + subida de imagen/archivo; OpenAI si hay `OPENAI_API_KEY`, si no stub amable.
@@ -70,4 +75,4 @@ App nativa, POS, inventario en tiempo real, multi-tenant, email/push.
 
 ## Stack
 
-Next.js 15 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · Prisma 5 · Vitest · OpenAI SDK
+Next.js 15 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · Prisma 5 · React Three Fiber / drei · Vitest · OpenAI SDK

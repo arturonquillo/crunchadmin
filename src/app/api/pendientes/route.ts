@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { CATEGORIAS, ESTADOS, PRIORIDADES } from "@/lib/labels";
+import { isRestaurantZone, resolveZone } from "@/lib/zones";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const categoria = searchParams.get("categoria");
   const estado = searchParams.get("estado");
+  const zona = searchParams.get("zona");
 
   const items = await prisma.pendiente.findMany({
     where: {
       ...(categoria ? { categoria } : {}),
       ...(estado ? { estado } : {}),
+      ...(zona && isRestaurantZone(zona) ? { zone: zona } : {}),
     },
     orderBy: [{ prioridad: "desc" }, { createdAt: "desc" }],
     include: { insumo: true, receta: true },
@@ -27,6 +30,7 @@ export async function POST(req: NextRequest) {
   const categoria = String(body.categoria ?? "COMPRAS");
   const estado = String(body.estado ?? "PENDIENTE");
   const prioridad = String(body.prioridad ?? "MEDIA");
+  const zone = resolveZone(body.zone);
   if (!CATEGORIAS.includes(categoria as never)) {
     return NextResponse.json({ error: "Categoría inválida" }, { status: 400 });
   }
@@ -44,6 +48,8 @@ export async function POST(req: NextRequest) {
       categoria,
       estado,
       prioridad,
+      zone,
+      anchorHint: body.anchorHint ? String(body.anchorHint) : null,
       dueDate: body.dueDate ? new Date(body.dueDate) : null,
       insumoId: body.insumoId || null,
       recetaId: body.recetaId || null,
