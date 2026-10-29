@@ -1,7 +1,12 @@
 "use client";
 
 import { Canvas, useThree } from "@react-three/fiber";
-import { ContactShadows, Environment, OrbitControls } from "@react-three/drei";
+import {
+  ContactShadows,
+  Environment,
+  OrbitControls,
+  SoftShadows,
+} from "@react-three/drei";
 import { Suspense, useEffect, useMemo, useRef } from "react";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import * as THREE from "three";
@@ -31,8 +36,8 @@ function CameraRig({
   controlsRef: React.MutableRefObject<OrbitControlsImpl | null>;
 }) {
   const { camera } = useThree();
-  const target = useRef(new THREE.Vector3(0, 0.8, 0));
-  const desiredCam = useRef(new THREE.Vector3(6.5, 4.2, 7.5));
+  const target = useRef(new THREE.Vector3(0, 0.55, 0.2));
+  const desiredCam = useRef(new THREE.Vector3(5.8, 4.6, 6.4));
 
   useEffect(() => {
     if (focusedZone) {
@@ -40,8 +45,8 @@ function CameraRig({
       desiredCam.current.set(...z.camera);
       target.current.set(...z.lookAt);
     } else {
-      desiredCam.current.set(6.5, 4.2, 7.5);
-      target.current.set(0, 0.8, 0);
+      desiredCam.current.set(5.8, 4.6, 6.4);
+      target.current.set(0, 0.55, 0.2);
     }
   }, [focusedZone]);
 
@@ -49,12 +54,12 @@ function CameraRig({
     let frame = 0;
     const animate = () => {
       frame += 1;
-      camera.position.lerp(desiredCam.current, 0.08);
+      camera.position.lerp(desiredCam.current, 0.085);
       if (controlsRef.current) {
         controlsRef.current.target.lerp(target.current, 0.1);
         controlsRef.current.update();
       }
-      if (frame < 60) requestAnimationFrame(animate);
+      if (frame < 70) requestAnimationFrame(animate);
     };
     animate();
   }, [focusedZone, camera, controlsRef]);
@@ -108,17 +113,22 @@ function SceneInner({ pendientes, focusedZone, onFocusZone }: Props) {
 
   return (
     <>
-      <color attach="background" args={["#d9e8c8"]} />
-      <fog attach="fog" args={["#d9e8c8", 14, 28]} />
-      <ambientLight intensity={0.65} />
+      <color attach="background" args={["#f4efe6"]} />
+      <fog attach="fog" args={["#f4efe6", 16, 32]} />
+      <SoftShadows size={18} samples={10} focus={0.85} />
+
+      <ambientLight intensity={0.55} />
       <directionalLight
         castShadow
-        position={[8, 12, 6]}
-        intensity={1.15}
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
+        position={[7, 11, 5]}
+        intensity={1.35}
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+        shadow-bias={-0.0002}
+        color="#fff4e5"
       />
-      <hemisphereLight args={["#fef3c7", "#86a87a", 0.35]} />
+      <directionalLight position={[-5, 4, -3]} intensity={0.35} color="#dbeafe" />
+      <hemisphereLight args={["#fff7ed", "#a8a29e", 0.45]} />
 
       <RestaurantBuilding focusedZone={focusedZone} zonesWithWork={zonesWithWork} />
 
@@ -135,8 +145,14 @@ function SceneInner({ pendientes, focusedZone, onFocusZone }: Props) {
         />
       ))}
 
-      <ContactShadows position={[0, 0.01, 0]} opacity={0.35} scale={16} blur={2.2} />
-      <Environment preset="park" />
+      <ContactShadows
+        position={[0, -0.48, 0.4]}
+        opacity={0.45}
+        scale={14}
+        blur={2.4}
+        far={8}
+      />
+      <Environment preset="apartment" environmentIntensity={0.55} />
 
       <CameraRig focusedZone={focusedZone} controlsRef={controlsRef} />
       <OrbitControls
@@ -145,11 +161,12 @@ function SceneInner({ pendientes, focusedZone, onFocusZone }: Props) {
         enableDamping
         dampingFactor={0.08}
         autoRotate={!focusedZone}
-        autoRotateSpeed={0.55}
-        minDistance={3.5}
-        maxDistance={16}
-        maxPolarAngle={Math.PI / 2.05}
-        target={[0, 0.8, 0]}
+        autoRotateSpeed={0.45}
+        minDistance={4}
+        maxDistance={14}
+        minPolarAngle={0.35}
+        maxPolarAngle={Math.PI / 2.15}
+        target={[0, 0.55, 0.2]}
         onStart={bumpIdle}
         onChange={bumpIdle}
       />
@@ -163,8 +180,13 @@ export function RestaurantScene(props: Props) {
       <Canvas
         shadows
         dpr={[1, 1.75]}
-        camera={{ position: [6.5, 4.2, 7.5], fov: 42, near: 0.1, far: 60 }}
-        gl={{ antialias: true, powerPreference: "high-performance" }}
+        camera={{ position: [5.8, 4.6, 6.4], fov: 38, near: 0.1, far: 70 }}
+        gl={{
+          antialias: true,
+          powerPreference: "high-performance",
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1.05,
+        }}
         onPointerMissed={() => props.onFocusZone(null)}
       >
         <Suspense fallback={null}>

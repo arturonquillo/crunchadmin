@@ -42,12 +42,12 @@ export function HomeRestaurant({ pendientes }: Props) {
         <div className="home-3d-brand">
           <h1>Crunchadmin</h1>
           <p>
-            Tu restaurante en miniatura. Gira, acerca y toca una zona para ver
-            los pendientes ahí.
+            Diorama abierto del local: sin techo, paredes que se apartan al girar
+            para mirar siempre hacia adentro.
           </p>
           <p className="home-3d-hint">
-            {openCount} pendientes abiertos · auto-gira en reposo · pellizca para
-            zoom
+            {openCount} pendientes abiertos · auto-gira · pellizca para zoom ·
+            toca una zona
           </p>
         </div>
       </div>

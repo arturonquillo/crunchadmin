@@ -14,11 +14,11 @@ npm run db:seed
 npm run dev
 ```
 
-Abre [http://localhost:3000](http://localhost:3000) — la home es el **restaurante cartoon 3D** (girar / zoom / tocar zonas).
+Abre [http://localhost:3000](http://localhost:3000) — home = **diorama 3D estilo clay/juguete** (sin techo, cutaway tipo casa de muñecas).
 
 ## Home 3D (zonas)
 
-Pendientes llevan un campo `zone` (`pared_entrada`, `cocina`, `salon`, `barra`, `exterior`, `bano`, `oficina`). En el mapa 3D aparecen como hotspots; al tocar una zona se abre un panel con sus tareas (p. ej. “pintar la pared de entrada de rojo” ilumina la fachada). Sin ubicación física → `oficina`.
+Pendientes llevan un campo `zone` (`pared_entrada`, `cocina`, `salon`, `barra`, `exterior`, `bano`, `oficina`). Hotspots en el diorama; al girar, las paredes del lado de la cámara se atenúan para no tapar el interior. “Pintar la pared…” marca el panel de entrada. Sin ubicación física → `oficina`.
 
 ## Scripts
 

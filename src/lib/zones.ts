@@ -1,4 +1,4 @@
-/** Restaurant zones for the interactive 3D home scene */
+/** Restaurant zones for the interactive 3D home scene (open dollhouse layout) */
 
 export type RestaurantZone =
   | "pared_entrada"
@@ -14,80 +14,76 @@ export type Vec3 = [number, number, number];
 export type ZoneDef = {
   id: RestaurantZone;
   label: string;
-  /** World position of the hotspot / marker */
   position: Vec3;
-  /** Camera look-at when focusing this zone */
   lookAt: Vec3;
-  /** Camera position when focusing */
   camera: Vec3;
-  /** Accent for markers / highlights */
   color: string;
-  /** Highlight mesh kind for “work pending here” */
   highlight?: "wall" | "floor" | "counter" | "none";
 };
 
+/** Layout: open-top dollhouse on a diorama base. +Z = entrada/exterior, -Z = cocina */
 export const ZONES: Record<RestaurantZone, ZoneDef> = {
   pared_entrada: {
     id: "pared_entrada",
     label: "Pared de entrada",
-    position: [0, 1.4, 3.05],
-    lookAt: [0, 1.2, 2.5],
-    camera: [0, 2.2, 7.5],
-    color: "#c45c26",
+    position: [0, 1.15, 2.55],
+    lookAt: [0, 0.7, 2.0],
+    camera: [0, 3.8, 7.2],
+    color: "#ea580c",
     highlight: "wall",
   },
   salon: {
     id: "salon",
     label: "Salón",
-    position: [0, 0.9, 0.4],
-    lookAt: [0, 0.6, 0],
-    camera: [4.5, 3.2, 5.5],
-    color: "#2f6b3a",
+    position: [0.35, 0.85, 0.35],
+    lookAt: [0.2, 0.5, 0.2],
+    camera: [4.8, 4.2, 4.8],
+    color: "#f97316",
     highlight: "floor",
   },
   barra: {
     id: "barra",
     label: "Barra",
-    position: [-2.2, 1.0, -0.2],
-    lookAt: [-2.0, 0.8, -0.2],
-    camera: [1.5, 2.8, 3.8],
-    color: "#8b5a2b",
+    position: [-2.15, 0.95, 0.1],
+    lookAt: [-1.9, 0.7, 0.1],
+    camera: [2.2, 3.6, 4.0],
+    color: "#c2410c",
     highlight: "counter",
   },
   cocina: {
     id: "cocina",
     label: "Cocina",
-    position: [0, 1.0, -2.6],
-    lookAt: [0, 0.9, -2.4],
-    camera: [3.2, 3.0, 1.2],
-    color: "#c2410c",
+    position: [0.2, 0.9, -2.35],
+    lookAt: [0.1, 0.6, -2.0],
+    camera: [3.5, 3.8, 1.5],
+    color: "#ea580c",
     highlight: "floor",
   },
   bano: {
     id: "bano",
     label: "Baño",
-    position: [2.6, 1.0, -1.8],
-    lookAt: [2.4, 0.9, -1.6],
-    camera: [5.5, 2.8, 1.5],
-    color: "#0e7490",
+    position: [2.45, 0.9, -1.85],
+    lookAt: [2.2, 0.6, -1.5],
+    camera: [5.5, 3.5, 1.2],
+    color: "#0ea5e9",
     highlight: "floor",
   },
   exterior: {
     id: "exterior",
     label: "Exterior",
-    position: [0, 0.6, 5.2],
-    lookAt: [0, 0.4, 4.5],
-    camera: [3.5, 2.8, 8.5],
+    position: [0.9, 0.55, 4.0],
+    lookAt: [0.6, 0.35, 3.4],
+    camera: [3.8, 3.4, 7.5],
     color: "#65a30d",
     highlight: "none",
   },
   oficina: {
     id: "oficina",
     label: "Oficina / general",
-    position: [3.4, 1.6, 1.2],
-    lookAt: [2.8, 1.2, 1.0],
-    camera: [6.5, 3.5, 4.0],
-    color: "#475569",
+    position: [2.55, 1.05, 1.35],
+    lookAt: [2.2, 0.7, 1.1],
+    camera: [5.8, 3.8, 4.2],
+    color: "#78716c",
     highlight: "none",
   },
 };
