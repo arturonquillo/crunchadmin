@@ -14,11 +14,13 @@ npm run db:seed
 npm run dev
 ```
 
-Abre [http://localhost:3000](http://localhost:3000) — home = **diorama 3D estilo clay/juguete** (sin techo, cutaway tipo casa de muñecas).
+Abre [http://localhost:3000](http://localhost:3000) — home = **nivel 3D tipo videojuego** (props Kenney CC0, sin techo, cutaway).
 
-## Home 3D (zonas)
+## Home 3D (zonas + assets)
 
-Pendientes llevan un campo `zone` (`pared_entrada`, `cocina`, `salon`, `barra`, `exterior`, `bano`, `oficina`). Hotspots en el diorama; al girar, las paredes del lado de la cámara se atenúan para no tapar el interior. “Pintar la pared…” marca el panel de entrada. Sin ubicación física → `oficina`.
+Pendientes llevan `zone` (`pared_entrada`, `cocina`, `salon`, `barra`, `exterior`, `bano`, `oficina`). Props GLB de **Kenney Furniture Pack** (CC0; ver `public/models/kenney/CREDITS.md`). Hover/click con brillo y anillo; cámara hace zoom a la zona. Tareas abiertas marcan props (pared roja, cajas en cocina, etc.); al marcar `HECHO` se limpian. Zoom lejano: `maxDistance` ~32. Sin ubicación física → `oficina`.
+
+**Crédito assets:** [Kenney.nl](https://kenney.nl) Furniture Pack — CC0 (vía [OpenGameArt](https://opengameart.org/content/furniture-kit)).
 
 ## Scripts
 

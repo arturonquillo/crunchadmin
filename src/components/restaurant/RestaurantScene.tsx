@@ -37,7 +37,7 @@ function CameraRig({
 }) {
   const { camera } = useThree();
   const target = useRef(new THREE.Vector3(0, 0.55, 0.2));
-  const desiredCam = useRef(new THREE.Vector3(5.8, 4.6, 6.4));
+  const desiredCam = useRef(new THREE.Vector3(7.5, 5.5, 8.2));
 
   useEffect(() => {
     if (focusedZone) {
@@ -45,7 +45,7 @@ function CameraRig({
       desiredCam.current.set(...z.camera);
       target.current.set(...z.lookAt);
     } else {
-      desiredCam.current.set(5.8, 4.6, 6.4);
+      desiredCam.current.set(7.5, 5.5, 8.2);
       target.current.set(0, 0.55, 0.2);
     }
   }, [focusedZone]);
@@ -54,7 +54,7 @@ function CameraRig({
     let frame = 0;
     const animate = () => {
       frame += 1;
-      camera.position.lerp(desiredCam.current, 0.085);
+      camera.position.lerp(desiredCam.current, 0.08);
       if (controlsRef.current) {
         controlsRef.current.target.lerp(target.current, 0.1);
         controlsRef.current.update();
@@ -71,6 +71,7 @@ function SceneInner({ pendientes, focusedZone, onFocusZone }: Props) {
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoRotate = useRef(true);
+  const userActive = useRef(false);
 
   const counts = useMemo(() => {
     const map = new Map<RestaurantZone, number>();
@@ -94,15 +95,17 @@ function SceneInner({ pendientes, focusedZone, onFocusZone }: Props) {
   }, [counts]);
 
   const bumpIdle = () => {
+    userActive.current = true;
     autoRotate.current = false;
     if (controlsRef.current) controlsRef.current.autoRotate = false;
     if (idleTimer.current) clearTimeout(idleTimer.current);
     idleTimer.current = setTimeout(() => {
+      userActive.current = false;
       autoRotate.current = true;
       if (controlsRef.current && !focusedZone) {
         controlsRef.current.autoRotate = true;
       }
-    }, 3500);
+    }, 4500);
   };
 
   useEffect(() => {
@@ -111,26 +114,35 @@ function SceneInner({ pendientes, focusedZone, onFocusZone }: Props) {
     }
   }, [focusedZone]);
 
+  const selectZone = (zone: RestaurantZone) => {
+    bumpIdle();
+    onFocusZone(focusedZone === zone ? null : zone);
+  };
+
   return (
     <>
-      <color attach="background" args={["#f4efe6"]} />
-      <fog attach="fog" args={["#f4efe6", 16, 32]} />
-      <SoftShadows size={18} samples={10} focus={0.85} />
+      <color attach="background" args={["#efe8dc"]} />
+      <fog attach="fog" args={["#efe8dc", 22, 42]} />
+      <SoftShadows size={16} samples={8} focus={0.8} />
 
-      <ambientLight intensity={0.55} />
+      <ambientLight intensity={0.58} />
       <directionalLight
         castShadow
-        position={[7, 11, 5]}
-        intensity={1.35}
+        position={[8, 12, 6]}
+        intensity={1.4}
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
         shadow-bias={-0.0002}
         color="#fff4e5"
       />
-      <directionalLight position={[-5, 4, -3]} intensity={0.35} color="#dbeafe" />
-      <hemisphereLight args={["#fff7ed", "#a8a29e", 0.45]} />
+      <directionalLight position={[-6, 5, -4]} intensity={0.32} color="#dbeafe" />
+      <hemisphereLight args={["#fff7ed", "#a8a29e", 0.42]} />
 
-      <RestaurantBuilding focusedZone={focusedZone} zonesWithWork={zonesWithWork} />
+      <RestaurantBuilding
+        focusedZone={focusedZone}
+        zonesWithWork={zonesWithWork}
+        onSelectZone={selectZone}
+      />
 
       {ZONE_IDS.map((zone) => (
         <ZoneHotspot
@@ -138,21 +150,18 @@ function SceneInner({ pendientes, focusedZone, onFocusZone }: Props) {
           zone={zone}
           count={counts.get(zone) || 0}
           active={focusedZone === zone}
-          onSelect={(z) => {
-            bumpIdle();
-            onFocusZone(focusedZone === z ? null : z);
-          }}
+          onSelect={selectZone}
         />
       ))}
 
       <ContactShadows
-        position={[0, -0.48, 0.4]}
-        opacity={0.45}
-        scale={14}
-        blur={2.4}
-        far={8}
+        position={[0, -0.52, 0.35]}
+        opacity={0.48}
+        scale={16}
+        blur={2.5}
+        far={10}
       />
-      <Environment preset="apartment" environmentIntensity={0.55} />
+      <Environment preset="apartment" environmentIntensity={0.5} />
 
       <CameraRig focusedZone={focusedZone} controlsRef={controlsRef} />
       <OrbitControls
@@ -161,14 +170,15 @@ function SceneInner({ pendientes, focusedZone, onFocusZone }: Props) {
         enableDamping
         dampingFactor={0.08}
         autoRotate={!focusedZone}
-        autoRotateSpeed={0.45}
-        minDistance={4}
-        maxDistance={14}
-        minPolarAngle={0.35}
-        maxPolarAngle={Math.PI / 2.15}
+        autoRotateSpeed={0.4}
+        minDistance={2.8}
+        maxDistance={32}
+        minPolarAngle={0.2}
+        maxPolarAngle={Math.PI / 2.08}
+        zoomSpeed={1.15}
         target={[0, 0.55, 0.2]}
         onStart={bumpIdle}
-        onChange={bumpIdle}
+        onEnd={bumpIdle}
       />
     </>
   );
@@ -180,12 +190,12 @@ export function RestaurantScene(props: Props) {
       <Canvas
         shadows
         dpr={[1, 1.75]}
-        camera={{ position: [5.8, 4.6, 6.4], fov: 38, near: 0.1, far: 70 }}
+        camera={{ position: [7.5, 5.5, 8.2], fov: 40, near: 0.1, far: 80 }}
         gl={{
           antialias: true,
           powerPreference: "high-performance",
           toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.05,
+          toneMappingExposure: 1.08,
         }}
         onPointerMissed={() => props.onFocusZone(null)}
       >

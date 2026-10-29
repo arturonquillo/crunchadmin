@@ -42,12 +42,12 @@ export function HomeRestaurant({ pendientes }: Props) {
         <div className="home-3d-brand">
           <h1>Crunchadmin</h1>
           <p>
-            Diorama abierto del local: sin techo, paredes que se apartan al girar
-            para mirar siempre hacia adentro.
+            Nivel jugable del local (Kenney CC0): tocá mesas, barra, cocina o la
+            pared — el pendiente se refleja en la escena.
           </p>
           <p className="home-3d-hint">
-            {openCount} pendientes abiertos · auto-gira · pellizca para zoom ·
-            toca una zona
+            {openCount} abiertos · alejate para ver todo · pellizca / rueda para
+            zoom · hover = brillo
           </p>
         </div>
       </div>

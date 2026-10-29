@@ -2,69 +2,42 @@
 
 import { RoundedBox } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { RestaurantZone } from "@/lib/zones";
+import { KenneyProp } from "./KenneyProp";
 
 type Props = {
   focusedZone: RestaurantZone | null;
   zonesWithWork: Set<RestaurantZone>;
+  onSelectZone: (zone: RestaurantZone) => void;
 };
 
-const ROOM = { cx: 0, cz: -0.15, halfX: 3.35, halfZ: 2.85 };
+const ROOM = { cx: 0, cz: -0.2, halfX: 3.5, halfZ: 3.0 };
 
-function Clay({
+function ClayFloor({
   position,
   args,
   color,
-  radius = 0.08,
-  roughness = 0.45,
-  metalness = 0.02,
-  emissive,
-  emissiveIntensity = 0,
-  opacity = 1,
-  castShadow = true,
-  receiveShadow = true,
-  onClick,
 }: {
   position: [number, number, number];
   args: [number, number, number];
   color: string;
-  radius?: number;
-  roughness?: number;
-  metalness?: number;
-  emissive?: string;
-  emissiveIntensity?: number;
-  opacity?: number;
-  castShadow?: boolean;
-  receiveShadow?: boolean;
-  onClick?: (e: { stopPropagation: () => void }) => void;
 }) {
-  const r = Math.min(radius, Math.min(args[0], args[1], args[2]) * 0.45);
   return (
     <RoundedBox
       position={position}
       args={args}
-      radius={r}
-      smoothness={4}
-      castShadow={castShadow}
-      receiveShadow={receiveShadow}
-      onClick={onClick}
+      radius={0.06}
+      smoothness={3}
+      receiveShadow
+      castShadow
     >
-      <meshStandardMaterial
-        color={color}
-        roughness={roughness}
-        metalness={metalness}
-        emissive={emissive ?? "#000000"}
-        emissiveIntensity={emissiveIntensity}
-        transparent={opacity < 1}
-        opacity={opacity}
-      />
+      <meshStandardMaterial color={color} roughness={0.4} metalness={0.06} />
     </RoundedBox>
   );
 }
 
-/** Perimeter wall that fades when the camera is on its outside (dollhouse cutaway). */
 function SmartWall({
   position,
   args,
@@ -89,274 +62,213 @@ function SmartWall({
       0,
       camera.position.z - ROOM.cz
     ).normalize();
-    // Camera outside this wall → hide so we always look into the room
     const outside = fromCenter.dot(out);
-    const target = outside > 0.12 ? 0 : outside > -0.05 ? 0.35 : 1;
-    mat.current.opacity = THREE.MathUtils.lerp(mat.current.opacity, target, 0.18);
-    mat.current.transparent = mat.current.opacity < 0.98;
-    mat.current.depthWrite = mat.current.opacity > 0.6;
+    const target = outside > 0.1 ? 0 : outside > -0.08 ? 0.28 : 0.92;
+    mat.current.opacity = THREE.MathUtils.lerp(mat.current.opacity, target, 0.16);
+    mat.current.transparent = true;
+    mat.current.depthWrite = mat.current.opacity > 0.55;
   });
 
   return (
-    <RoundedBox position={position} args={args} radius={0.06} smoothness={3} castShadow>
+    <RoundedBox position={position} args={args} radius={0.05} smoothness={3} castShadow>
       <meshStandardMaterial
         ref={mat}
         color={accent ? "#ea580c" : color}
-        roughness={0.42}
-        metalness={0.03}
+        roughness={0.48}
+        metalness={0.04}
         transparent
-        opacity={1}
+        opacity={0.92}
         emissive={accent ? "#c2410c" : "#000000"}
-        emissiveIntensity={accent ? 0.22 : 0}
+        emissiveIntensity={accent ? 0.35 : 0}
       />
     </RoundedBox>
   );
 }
 
-function Chair({ position, rotY = 0 }: { position: [number, number, number]; rotY?: number }) {
-  return (
-    <group position={position} rotation={[0, rotY, 0]}>
-      <Clay position={[0, 0.28, 0]} args={[0.38, 0.08, 0.38]} color="#fb923c" radius={0.06} />
-      <Clay position={[0, 0.48, -0.14]} args={[0.38, 0.34, 0.08]} color="#fb923c" radius={0.05} />
-      <Clay position={[-0.12, 0.14, -0.12]} args={[0.05, 0.28, 0.05]} color="#44403c" radius={0.02} />
-      <Clay position={[0.12, 0.14, -0.12]} args={[0.05, 0.28, 0.05]} color="#44403c" radius={0.02} />
-      <Clay position={[-0.12, 0.14, 0.12]} args={[0.05, 0.28, 0.05]} color="#44403c" radius={0.02} />
-      <Clay position={[0.12, 0.14, 0.12]} args={[0.05, 0.28, 0.05]} color="#44403c" radius={0.02} />
-    </group>
-  );
-}
-
-function TableSet({
-  position,
-  glow,
+function SelectableWallPanel({
+  selected,
+  hasWork,
+  onSelect,
 }: {
-  position: [number, number, number];
-  glow?: boolean;
+  selected: boolean;
+  hasWork: boolean;
+  onSelect: () => void;
 }) {
+  const ref = useRef<THREE.Mesh>(null);
+  const [hovered, setHovered] = useState(false);
+
+  useFrame(({ clock }) => {
+    if (!ref.current) return;
+    const mat = ref.current.material as THREE.MeshStandardMaterial;
+    const pulse = hasWork ? 0.25 + Math.sin(clock.getElapsedTime() * 2.2) * 0.15 : 0;
+    mat.emissiveIntensity = selected ? 0.55 : hovered ? 0.35 : pulse;
+  });
+
   return (
-    <group position={position}>
-      <Clay
-        position={[0, 0.42, 0]}
-        args={[0.95, 0.08, 0.95]}
-        color="#fff7ed"
-        radius={0.08}
-        emissive={glow ? "#fdba74" : "#000000"}
-        emissiveIntensity={glow ? 0.2 : 0}
+    <RoundedBox
+      ref={ref}
+      position={[0, 1.05, 2.72]}
+      args={[1.9, 1.85, 0.12]}
+      radius={0.08}
+      smoothness={3}
+      castShadow
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelect();
+      }}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        setHovered(true);
+        document.body.style.cursor = "pointer";
+      }}
+      onPointerOut={() => {
+        setHovered(false);
+        document.body.style.cursor = "auto";
+      }}
+    >
+      <meshStandardMaterial
+        color={hasWork || selected ? "#ea580c" : "#ffedd5"}
+        roughness={0.45}
+        emissive={hasWork || selected || hovered ? "#c2410c" : "#000000"}
+        emissiveIntensity={hasWork ? 0.3 : 0}
       />
-      <Clay position={[0, 0.2, 0]} args={[0.14, 0.4, 0.14]} color="#a8a29e" radius={0.04} />
-      <Chair position={[0.55, 0, 0]} rotY={-Math.PI / 2} />
-      <Chair position={[-0.55, 0, 0]} rotY={Math.PI / 2} />
-    </group>
+    </RoundedBox>
   );
 }
 
-function Plant({ position, scale = 1 }: { position: [number, number, number]; scale?: number }) {
-  return (
-    <group position={position} scale={scale}>
-      <Clay position={[0, 0.18, 0]} args={[0.28, 0.28, 0.28]} color="#78716c" radius={0.06} />
-      <mesh position={[0, 0.48, 0]} castShadow>
-        <sphereGeometry args={[0.28, 16, 16]} />
-        <meshStandardMaterial color="#65a30d" roughness={0.7} />
-      </mesh>
-      <mesh position={[0.12, 0.62, 0.05]} castShadow>
-        <sphereGeometry args={[0.18, 12, 12]} />
-        <meshStandardMaterial color="#84cc16" roughness={0.7} />
-      </mesh>
-    </group>
-  );
-}
-
-export function RestaurantBuilding({ focusedZone, zonesWithWork }: Props) {
-  const wallAccent =
-    focusedZone === "pared_entrada" || zonesWithWork.has("pared_entrada");
-  const barraGlow = focusedZone === "barra" || zonesWithWork.has("barra");
-  const cocinaGlow = focusedZone === "cocina" || zonesWithWork.has("cocina");
-  const salonGlow = focusedZone === "salon" || zonesWithWork.has("salon");
-  const banoGlow = focusedZone === "bano" || zonesWithWork.has("bano");
-  const oficinaGlow = focusedZone === "oficina" || zonesWithWork.has("oficina");
-  const exteriorGlow = focusedZone === "exterior" || zonesWithWork.has("exterior");
+export function RestaurantBuilding({
+  focusedZone,
+  zonesWithWork,
+  onSelectZone,
+}: Props) {
+  const wallWork = zonesWithWork.has("pared_entrada");
+  const cocinaWork = zonesWithWork.has("cocina");
+  const barraWork = zonesWithWork.has("barra");
+  const salonWork = zonesWithWork.has("salon");
+  const banoWork = zonesWithWork.has("bano");
+  const oficinaWork = zonesWithWork.has("oficina");
+  const exteriorWork = zonesWithWork.has("exterior");
 
   return (
     <group>
-      {/* Diorama base — toy pedestal */}
-      <Clay
-        position={[0, -0.28, 0.4]}
-        args={[9.2, 0.45, 10.2]}
-        color="#3f3a36"
-        radius={0.22}
-        roughness={0.55}
-      />
-      <Clay
-        position={[0, -0.02, 0.4]}
-        args={[8.6, 0.14, 9.6]}
-        color="#292524"
-        radius={0.14}
-        roughness={0.5}
-      />
+      <ClayFloor position={[0, -0.32, 0.35]} args={[10.5, 0.5, 11.5]} color="#292524" />
+      <ClayFloor position={[0, -0.04, 0.35]} args={[9.8, 0.12, 10.8]} color="#44403c" />
+      <ClayFloor position={[0, 0.05, -0.2]} args={[7.0, 0.1, 6.0]} color="#f5e6d0" />
+      <ClayFloor position={[0.6, 0.06, 4.15]} args={[4.2, 0.1, 2.3]} color="#57534e" />
 
-      {/* Interior floor — warm clay tile feel */}
-      <Clay
-        position={[0, 0.04, -0.15]}
-        args={[6.7, 0.1, 5.7]}
-        color="#f5e6d0"
-        radius={0.05}
-        roughness={0.35}
-        metalness={0.08}
-      />
-
-      {/* Soft floor glow under salón when work pending */}
-      {salonGlow && (
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0.3, 0.1, 0.35]}>
-          <circleGeometry args={[1.35, 28]} />
-          <meshStandardMaterial
-            color="#fdba74"
-            transparent
-            opacity={focusedZone === "salon" ? 0.4 : 0.22}
-            emissive="#f97316"
-            emissiveIntensity={0.35}
-          />
-        </mesh>
-      )}
-
-      {/* Dollhouse walls (camera-aware fade) — cream clay + orange accents */}
       <SmartWall
-        position={[0, 1.15, ROOM.cz + ROOM.halfZ]}
-        args={[6.7, 2.25, 0.16]}
+        position={[0, 1.2, ROOM.cz + ROOM.halfZ]}
+        args={[7.0, 2.35, 0.14]}
         outward={[0, 0, 1]}
         color="#f3e7d6"
-        accent={wallAccent}
+        accent={wallWork || focusedZone === "pared_entrada"}
       />
       <SmartWall
-        position={[0, 1.15, ROOM.cz - ROOM.halfZ]}
-        args={[6.7, 2.25, 0.16]}
+        position={[0, 1.2, ROOM.cz - ROOM.halfZ]}
+        args={[7.0, 2.35, 0.14]}
         outward={[0, 0, -1]}
         color="#efe2cf"
       />
       <SmartWall
-        position={[-(ROOM.halfX), 1.15, ROOM.cz]}
-        args={[0.16, 2.25, 5.7]}
+        position={[-ROOM.halfX, 1.2, ROOM.cz]}
+        args={[0.14, 2.35, 6.0]}
         outward={[-1, 0, 0]}
         color="#f0e4d2"
       />
       <SmartWall
-        position={[ROOM.halfX, 1.15, ROOM.cz]}
-        args={[0.16, 2.25, 5.7]}
+        position={[ROOM.halfX, 1.2, ROOM.cz]}
+        args={[0.14, 2.35, 6.0]}
         outward={[1, 0, 0]}
         color="#f0e4d2"
       />
 
-      {/* Low orange wainscot strips (stay readable even when walls fade) */}
-      <Clay position={[-2.4, 0.35, 0.1]} args={[0.12, 0.7, 3.8]} color="#fb923c" radius={0.04} />
-      <Clay position={[2.4, 0.35, -0.4]} args={[0.12, 0.7, 3.2]} color="#fb923c" radius={0.04} />
-
-      {/* Entrance accent panel (paint task target) */}
-      <Clay
-        position={[0, 1.05, 2.62]}
-        args={[1.7, 1.7, 0.1]}
-        color={wallAccent ? "#ea580c" : "#ffedd5"}
-        radius={0.08}
-        emissive={wallAccent ? "#c2410c" : "#000000"}
-        emissiveIntensity={wallAccent ? (focusedZone === "pared_entrada" ? 0.45 : 0.22) : 0}
+      <SelectableWallPanel
+        selected={focusedZone === "pared_entrada"}
+        hasWork={wallWork}
+        onSelect={() => onSelectZone("pared_entrada")}
       />
 
-      {/* Orange awning lip (no roof — just a front canopy suggestion) */}
-      <Clay position={[0, 2.15, 2.35]} args={[4.2, 0.16, 1.1]} color="#f97316" radius={0.08} />
-      <Clay position={[0, 2.05, 2.85]} args={[4.0, 0.1, 0.18]} color="#fff7ed" radius={0.04} />
+      <RoundedBox position={[0, 2.25, 2.45]} args={[4.4, 0.14, 1.15]} radius={0.07} castShadow>
+        <meshStandardMaterial color="#f97316" roughness={0.4} />
+      </RoundedBox>
 
-      {/* Bar */}
-      <Clay
-        position={[-2.15, 0.5, 0.05]}
-        args={[1.35, 0.95, 3.0]}
-        color={barraGlow ? "#c2410c" : "#9a3412"}
+      {/* Salón */}
+      <KenneyProp name="tableCloth" zone="salon" position={[-0.7, 0.1, 0.9]} scale={1.15} selected={focusedZone === "salon"} hasWork={salonWork} onSelect={onSelectZone} />
+      <KenneyProp name="chairRounded" zone="salon" position={[-1.35, 0.1, 0.9]} rotation={[0, Math.PI / 2, 0]} scale={1.05} selected={focusedZone === "salon"} hasWork={salonWork} onSelect={onSelectZone} />
+      <KenneyProp name="chairRounded" zone="salon" position={[-0.05, 0.1, 0.9]} rotation={[0, -Math.PI / 2, 0]} scale={1.05} selected={focusedZone === "salon"} hasWork={salonWork} onSelect={onSelectZone} />
+      <KenneyProp name="tableRound" zone="salon" position={[1.25, 0.1, 0.55]} scale={1.2} selected={focusedZone === "salon"} hasWork={salonWork} onSelect={onSelectZone} />
+      <KenneyProp name="chair" zone="salon" position={[1.25, 0.1, 1.15]} scale={1.05} selected={focusedZone === "salon"} hasWork={salonWork} onSelect={onSelectZone} />
+      <KenneyProp name="tableCross" zone="salon" position={[0.35, 0.1, 1.75]} scale={1.1} selected={focusedZone === "salon"} hasWork={salonWork} onSelect={onSelectZone} />
+      <KenneyProp name="chairCushion" zone="salon" position={[0.95, 0.1, 1.75]} rotation={[0, -Math.PI / 2, 0]} scale={1.05} selected={focusedZone === "salon"} hasWork={salonWork} onSelect={onSelectZone} />
+
+      {/* Barra */}
+      <KenneyProp name="kitchenBar" zone="barra" position={[-2.25, 0.1, 0.2]} rotation={[0, Math.PI / 2, 0]} scale={1.25} selected={focusedZone === "barra"} hasWork={barraWork} onSelect={onSelectZone} workColor="#c2410c" />
+      <KenneyProp name="kitchenBarEnd" zone="barra" position={[-2.25, 0.1, 1.35]} rotation={[0, Math.PI / 2, 0]} scale={1.2} selected={focusedZone === "barra"} hasWork={barraWork} onSelect={onSelectZone} workColor="#c2410c" />
+      <KenneyProp name="stoolBar" zone="barra" position={[-1.45, 0.1, 0.0]} scale={1.1} selected={focusedZone === "barra"} hasWork={barraWork} onSelect={onSelectZone} />
+      <KenneyProp name="stoolBarSquare" zone="barra" position={[-1.45, 0.1, 0.75]} scale={1.1} selected={focusedZone === "barra"} hasWork={barraWork} onSelect={onSelectZone} />
+      <KenneyProp name="kitchenCoffeeMachine" zone="barra" position={[-2.25, 0.95, -0.55]} scale={1.15} selected={focusedZone === "barra"} hasWork={barraWork} onSelect={onSelectZone} />
+
+      {/* Cocina */}
+      <KenneyProp name="kitchenCabinet" zone="cocina" position={[-1.1, 0.1, -2.35]} scale={1.2} selected={focusedZone === "cocina"} hasWork={cocinaWork} onSelect={onSelectZone} workColor="#ea580c" />
+      <KenneyProp name="kitchenCabinetDrawer" zone="cocina" position={[0.1, 0.1, -2.35]} scale={1.2} selected={focusedZone === "cocina"} hasWork={cocinaWork} onSelect={onSelectZone} workColor="#ea580c" />
+      <KenneyProp name="kitchenSink" zone="cocina" position={[1.2, 0.1, -2.35]} scale={1.15} selected={focusedZone === "cocina"} hasWork={cocinaWork} onSelect={onSelectZone} workColor="#ea580c" />
+      <KenneyProp name="kitchenFridge" zone="cocina" position={[-2.35, 0.1, -2.2]} rotation={[0, Math.PI / 2, 0]} scale={1.25} selected={focusedZone === "cocina"} hasWork={cocinaWork} onSelect={onSelectZone} workColor="#ea580c" />
+      <KenneyProp name="kitchenStove" zone="cocina" position={[2.2, 0.1, -2.3]} scale={1.15} selected={focusedZone === "cocina"} hasWork={cocinaWork} onSelect={onSelectZone} workColor="#ea580c" />
+      <KenneyProp name="kitchenMicrowave" zone="cocina" position={[0.1, 1.05, -2.35]} scale={1.1} selected={focusedZone === "cocina"} hasWork={cocinaWork} onSelect={onSelectZone} />
+      <KenneyProp name="kitchenBlender" zone="cocina" position={[1.55, 1.0, -2.2]} scale={1.2} selected={focusedZone === "cocina"} hasWork={cocinaWork} onSelect={onSelectZone} />
+      {cocinaWork && (
+        <>
+          <KenneyProp name="cardboardBoxOpen" zone="cocina" position={[0.7, 0.1, -1.55]} scale={1.1} selected={focusedZone === "cocina"} hasWork onSelect={onSelectZone} workColor="#ea580c" />
+          <KenneyProp name="cardboardBoxClosed" zone="cocina" position={[1.25, 0.1, -1.45]} rotation={[0, 0.4, 0]} scale={1.0} selected={focusedZone === "cocina"} hasWork onSelect={onSelectZone} workColor="#ea580c" />
+        </>
+      )}
+
+      {/* Baño */}
+      <KenneyProp name="bathroomSink" zone="bano" position={[2.55, 0.1, -1.55]} scale={1.2} selected={focusedZone === "bano"} hasWork={banoWork} onSelect={onSelectZone} workColor="#0ea5e9" />
+      <RoundedBox
+        position={[2.55, 0.95, -1.55]}
+        args={[1.5, 1.7, 1.5]}
         radius={0.1}
-        emissive={focusedZone === "barra" ? "#9a3412" : "#000000"}
-        emissiveIntensity={focusedZone === "barra" ? 0.25 : 0}
-      />
-      <Clay position={[-2.15, 1.02, 0.05]} args={[1.5, 0.12, 3.15]} color="#fed7aa" radius={0.06} />
-      <Clay position={[-2.15, 1.25, -0.9]} args={[0.55, 0.55, 0.55]} color="#e7e5e4" radius={0.1} />
-      <Clay position={[-2.15, 1.2, 0.7]} args={[0.4, 0.45, 0.4]} color="#a8a29e" radius={0.08} />
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelectZone("bano");
+        }}
+      >
+        <meshStandardMaterial
+          color={banoWork || focusedZone === "bano" ? "#7dd3fc" : "#e0f2fe"}
+          transparent
+          opacity={0.35}
+          roughness={0.35}
+        />
+      </RoundedBox>
 
-      {/* Kitchen island */}
-      <Clay
-        position={[0.1, 0.48, -2.25]}
-        args={[3.4, 0.9, 1.15]}
-        color={cocinaGlow ? "#ea580c" : "#d6d3d1"}
-        radius={0.1}
-        emissive={focusedZone === "cocina" ? "#c2410c" : "#000000"}
-        emissiveIntensity={focusedZone === "cocina" ? 0.28 : 0}
-      />
-      <Clay position={[-0.85, 1.15, -2.25]} args={[0.85, 0.55, 0.7]} color="#78716c" radius={0.08} />
-      <Clay position={[0.85, 1.05, -2.25]} args={[1.0, 0.35, 0.75]} color="#a8a29e" radius={0.08} />
-      <mesh position={[0.85, 1.28, -2.25]}>
-        <cylinderGeometry args={[0.12, 0.12, 0.08, 16]} />
-        <meshStandardMaterial color="#292524" roughness={0.4} />
-      </mesh>
+      {/* Oficina */}
+      <KenneyProp name="desk" zone="oficina" position={[2.5, 0.1, 1.35]} rotation={[0, -Math.PI / 2, 0]} scale={1.15} selected={focusedZone === "oficina"} hasWork={oficinaWork} onSelect={onSelectZone} workColor="#78716c" />
+      <KenneyProp name="chairDesk" zone="oficina" position={[2.5, 0.1, 2.0]} scale={1.05} selected={focusedZone === "oficina"} hasWork={oficinaWork} onSelect={onSelectZone} workColor="#78716c" />
 
-      {/* Salón tables */}
-      <TableSet position={[-0.55, 0, 0.85]} glow={salonGlow} />
-      <TableSet position={[1.15, 0, 0.55]} glow={salonGlow} />
-      <TableSet position={[0.25, 0, 1.65]} glow={salonGlow} />
+      {/* Exterior */}
+      <KenneyProp name="tableRound" zone="exterior" position={[0.7, 0.12, 4.15]} scale={1.15} selected={focusedZone === "exterior"} hasWork={exteriorWork} onSelect={onSelectZone} workColor="#65a30d" />
+      <KenneyProp name="chair" zone="exterior" position={[1.35, 0.12, 4.15]} rotation={[0, -Math.PI / 2, 0]} scale={1.05} selected={focusedZone === "exterior"} hasWork={exteriorWork} onSelect={onSelectZone} workColor="#65a30d" />
+      <KenneyProp name="chair" zone="exterior" position={[0.05, 0.12, 4.15]} rotation={[0, Math.PI / 2, 0]} scale={1.05} selected={focusedZone === "exterior"} hasWork={exteriorWork} onSelect={onSelectZone} workColor="#65a30d" />
+      <KenneyProp name="pottedPlant" zone="exterior" position={[2.25, 0.12, 4.4]} scale={1.2} selected={focusedZone === "exterior"} hasWork={exteriorWork} onSelect={onSelectZone} workColor="#65a30d" />
+      <KenneyProp name="plantSmall1" zone="exterior" position={[-1.5, 0.12, 3.7]} scale={1.15} selected={focusedZone === "exterior"} hasWork={exteriorWork} onSelect={onSelectZone} workColor="#65a30d" />
+      <KenneyProp name="plantSmall2" zone="salon" position={[2.7, 0.1, 0.2]} scale={1.1} selected={focusedZone === "salon"} hasWork={salonWork} onSelect={onSelectZone} />
 
-      {/* Bathroom cubicle — open top, soft clay */}
-      <Clay
-        position={[2.45, 0.85, -1.85]}
-        args={[1.45, 1.6, 1.45]}
-        color={banoGlow ? "#7dd3fc" : "#e0f2fe"}
-        radius={0.12}
-        opacity={0.92}
-        emissive={focusedZone === "bano" ? "#0284c7" : "#000000"}
-        emissiveIntensity={focusedZone === "bano" ? 0.2 : 0}
-      />
-      <Clay position={[2.45, 0.35, -1.85]} args={[0.45, 0.55, 0.45]} color="#fafafa" radius={0.08} />
-
-      {/* Oficina desk */}
-      <Clay
-        position={[2.45, 0.55, 1.35]}
-        args={[1.3, 0.75, 1.15]}
-        color={oficinaGlow ? "#a8a29e" : "#e7e5e4"}
-        radius={0.1}
-        emissive={focusedZone === "oficina" ? "#57534e" : "#000000"}
-        emissiveIntensity={focusedZone === "oficina" ? 0.18 : 0}
-      />
-      <Clay position={[2.45, 0.98, 1.35]} args={[1.35, 0.1, 1.2]} color="#fff7ed" radius={0.05} />
-      <Chair position={[2.45, 0, 2.0]} rotY={Math.PI} />
-
-      {/* Exterior patio */}
-      <Clay
-        position={[0.7, 0.08, 4.05]}
-        args={[3.6, 0.12, 2.0]}
-        color={exteriorGlow ? "#57534e" : "#44403c"}
-        radius={0.08}
-      />
-      <Clay position={[0.7, 0.42, 4.05]} args={[0.85, 0.08, 0.85]} color="#fff7ed" radius={0.08} />
-      <Clay position={[0.7, 0.2, 4.05]} args={[0.12, 0.36, 0.12]} color="#a8a29e" radius={0.03} />
-      <Chair position={[1.35, 0.05, 4.05]} rotY={-Math.PI / 2} />
-      <Chair position={[0.05, 0.05, 4.05]} rotY={Math.PI / 2} />
-      <Plant position={[2.2, 0.08, 4.35]} scale={0.9} />
-      <Plant position={[-1.8, 0.05, 3.6]} scale={1.05} />
-      <Plant position={[2.7, 0.05, -0.2]} scale={0.85} />
-
-      {/* Soft pendant “lights” hanging in open air (no roof) */}
       {[
-        [-0.55, 0.85],
-        [1.15, 0.55],
-        [0.25, 1.65],
+        [-0.7, 0.9],
+        [1.25, 0.55],
+        [0.35, 1.75],
       ].map(([x, z], i) => (
         <group key={i} position={[x, 0, z]}>
-          <mesh position={[0, 2.05, 0]}>
-            <cylinderGeometry args={[0.01, 0.01, 0.55, 8]} />
+          <mesh position={[0, 2.15, 0]}>
+            <cylinderGeometry args={[0.012, 0.012, 0.5, 8]} />
             <meshStandardMaterial color="#a8a29e" />
           </mesh>
-          <mesh position={[0, 1.7, 0]} castShadow>
-            <cylinderGeometry args={[0.18, 0.22, 0.22, 16]} />
-            <meshStandardMaterial
-              color="#ffedd5"
-              emissive="#fdba74"
-              emissiveIntensity={0.55}
-              roughness={0.35}
-            />
+          <mesh position={[0, 1.82, 0]} castShadow>
+            <sphereGeometry args={[0.14, 16, 16]} />
+            <meshStandardMaterial color="#ffedd5" emissive="#fdba74" emissiveIntensity={0.7} />
           </mesh>
-          <pointLight position={[0, 1.55, 0]} intensity={0.35} distance={3.5} color="#ffd7a8" />
+          <pointLight position={[0, 1.7, 0]} intensity={0.4} distance={4} color="#ffd7a8" />
         </group>
       ))}
     </group>
