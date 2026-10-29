@@ -31,6 +31,11 @@ Pendientes llevan `zone` (`pared_entrada`, `cocina`, `salon`, `barra`, `exterior
 | `npm test` | Tests del motor de escalado |
 | `npm run db:seed` | Datos demo (mayonesa 1 kg → 1,8 kg) |
 | `npm run db:studio` | Prisma Studio |
+| `bash scripts/preview-watchdog.sh` | Keepalive: reinicia `next start` + cloudflared y escribe la URL pública |
+
+### Preview keepalive (VM)
+
+En agentes / demos, `scripts/preview-watchdog.sh` (tmux `crunchadmin-watchdog`) vigila `:3000` y el túnel trycloudflare, recrea ambos si caen, y actualiza `/cursor/stores/self/docs/preview-url.md` con la URL vigente. Los túneles rápidos de Cloudflare cambian de hostname al reiniciar; para un dominio fijo hace falta deploy autenticado (Vercel/Railway/etc.) + DB no-SQLite.
 
 ## Módulos
 
