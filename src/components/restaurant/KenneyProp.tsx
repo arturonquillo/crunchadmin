@@ -6,11 +6,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { RestaurantZone } from "@/lib/zones";
 
+/** Kenney Furniture Pack OBJs are ~5× room units; normalize to meters-ish. */
+export const KENNEY_UNIT = 0.22;
+
 type Props = {
   name: string;
   zone: RestaurantZone;
   position: [number, number, number];
   rotation?: [number, number, number];
+  /** Extra multiplier on top of KENNEY_UNIT */
   scale?: number | [number, number, number];
   selected?: boolean;
   hasWork?: boolean;
@@ -92,14 +96,19 @@ export function KenneyProp({
     s.setScalar(next);
   });
 
-  const scaleNum = typeof scale === "number" ? scale : scale[0];
+  const scaleNum =
+    (typeof scale === "number" ? scale : scale[0]) * KENNEY_UNIT;
+  const finalScale: number | [number, number, number] =
+    typeof scale === "number"
+      ? scaleNum
+      : [scale[0] * KENNEY_UNIT, scale[1] * KENNEY_UNIT, scale[2] * KENNEY_UNIT];
 
   return (
     <group
       ref={group}
       position={position}
       rotation={rotation}
-      scale={scale}
+      scale={finalScale}
       userData={{ baseScale: scaleNum }}
       onClick={(e) => {
         e.stopPropagation();
