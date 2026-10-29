@@ -1,8 +1,8 @@
 # Crunchadmin
 
-Centro operativo del restaurante: **pendientes**, **recetas con versiones y escalado**, **menú multi-plataforma** (Foodie / tienda propia) y **chat** multimodal.
+Centro operativo del restaurante: **mapa 3D interactivo del local**, **pendientes por zona**, **recetas con versiones y escalado**, **menú multi-plataforma** (Foodie / tienda propia) y **chat** multimodal.
 
-MVP en español sobre Next.js App Router + TypeScript + Tailwind + Prisma (SQLite local).
+MVP en español sobre Next.js App Router + TypeScript + Tailwind + Prisma (SQLite local) + React Three Fiber.
 
 ## Arranque rápido
 
@@ -14,7 +14,13 @@ npm run db:seed
 npm run dev
 ```
 
-Abre [http://localhost:3000](http://localhost:3000).
+Abre [http://localhost:3000](http://localhost:3000) — home = **nivel 3D tipo videojuego** (props Kenney CC0, sin techo, cutaway).
+
+## Home 3D (zonas + assets)
+
+Pendientes llevan `zone` (`pared_entrada`, `cocina`, `salon`, `barra`, `exterior`, `bano`, `oficina`). Props GLB de **Kenney Furniture Pack** (CC0; ver `public/models/kenney/CREDITS.md`). Hover/click con brillo y anillo; cámara hace zoom a la zona. Tareas abiertas marcan props (pared roja, cajas en cocina, etc.); al marcar `HECHO` se limpian. Zoom lejano: `maxDistance` ~32. Sin ubicación física → `oficina`.
+
+**Crédito assets:** [Kenney.nl](https://kenney.nl) Furniture Pack — CC0 (vía [OpenGameArt](https://opengameart.org/content/furniture-kit)).
 
 ## Scripts
 
@@ -25,10 +31,16 @@ Abre [http://localhost:3000](http://localhost:3000).
 | `npm test` | Tests del motor de escalado |
 | `npm run db:seed` | Datos demo (mayonesa 1 kg → 1,8 kg) |
 | `npm run db:studio` | Prisma Studio |
+| `bash scripts/preview-watchdog.sh` | Keepalive: reinicia `next start` + cloudflared y escribe la URL pública |
+
+### Preview keepalive (VM)
+
+En agentes / demos, `scripts/preview-watchdog.sh` (tmux `crunchadmin-watchdog`) vigila `:3000` y el túnel trycloudflare, recrea ambos si caen, y actualiza `/cursor/stores/self/docs/preview-url.md` con la URL vigente. Los túneles rápidos de Cloudflare cambian de hostname al reiniciar; para un dominio fijo hace falta deploy autenticado (Vercel/Railway/etc.) + DB no-SQLite.
 
 ## Módulos
 
-- **Pendientes** — CRUD por categoría (mejoras físicas, compras, planes, insumos, nuevas recetas), estado y prioridad.
+- **Inicio 3D** — escena low-poly con auto-rotación, órbita táctil y pendientes anclados a zonas.
+- **Pendientes** — CRUD por categoría + selector de zona; filtros por zona.
 - **Recetas** — ficha + versiones; **escalado** desde rendimiento o cualquier ingrediente base (conversión g/kg, ml/L).
 - **Menú** — ítem base + specs Foodie / tienda propia (pestañas).
 - **Chat** — texto + subida de imagen/archivo; OpenAI si hay `OPENAI_API_KEY`, si no stub amable.
@@ -70,4 +82,4 @@ App nativa, POS, inventario en tiempo real, multi-tenant, email/push.
 
 ## Stack
 
-Next.js 15 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · Prisma 5 · Vitest · OpenAI SDK
+Next.js 15 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · Prisma 5 · React Three Fiber / drei · Vitest · OpenAI SDK

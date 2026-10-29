@@ -18,11 +18,15 @@
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "@react-three/drei": "^10.7.9",
+    "@react-three/fiber": "^9.8.2",
+    "@types/three": "^0.186.0",
     "date-fns": "^4.4.0",
     "next": "15.5.28",
     "openai": "^7.45.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "three": "^0.186.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {

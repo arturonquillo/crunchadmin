@@ -13,9 +13,10 @@ const LINKS = [
 
 export function AppNav() {
   const pathname = usePathname();
+  const isHome = pathname === "/";
 
   return (
-    <header className="site-header">
+    <header className={isHome ? "site-header home-overlay-nav" : "site-header"}>
       <div className="site-header-inner">
         <Link href="/" className="brand">
           <span className="brand-mark" aria-hidden />

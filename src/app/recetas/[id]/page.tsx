@@ -151,7 +151,7 @@ export default function RecetaDetailPage() {
   }
 
   return (
-    <>
+    <div className="shell">
       <p style={{ marginBottom: "0.5rem" }}>
         <Link href="/recetas" style={{ color: "var(--accent-deep)" }}>
           ← Recetas
@@ -365,6 +365,6 @@ export default function RecetaDetailPage() {
           ))}
         </div>
       </section>
-    </>
+    </div>
   );
 }

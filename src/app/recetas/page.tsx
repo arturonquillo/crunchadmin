@@ -72,7 +72,7 @@ export default function RecetasPage() {
   }
 
   return (
-    <>
+    <div className="shell">
       <h1 className="section-title">Recetas</h1>
       <p className="section-sub">
         Fichas técnicas con versiones. Abre una receta para escalar desde
@@ -185,6 +185,6 @@ export default function RecetasPage() {
           </div>
         )}
       </section>
-    </>
+    </div>
   );
 }

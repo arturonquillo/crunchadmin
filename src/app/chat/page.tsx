@@ -70,7 +70,7 @@ export default function ChatPage() {
   }
 
   return (
-    <>
+    <div className="shell">
       <h1 className="section-title">Chat</h1>
       <p className="section-sub">
         Asistente multimodal (texto + imagen/archivo).{" "}
@@ -134,6 +134,6 @@ export default function ChatPage() {
           </div>
         </form>
       </section>
-    </>
+    </div>
   );
 }

@@ -41,7 +41,7 @@ export default function MenuPage() {
   }, [items, tab]);
 
   return (
-    <>
+    <div className="shell">
       <h1 className="section-title">Menú</h1>
       <p className="section-sub">
         Menú base con especificaciones por plataforma. Pestañas: Foodie y tienda
@@ -142,6 +142,6 @@ export default function MenuPage() {
           </div>
         )}
       </section>
-    </>
+    </div>
   );
 }

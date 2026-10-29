@@ -46,6 +46,10 @@ model Pendiente {
   estado      String    @default("PENDIENTE")
   /// BAJA | MEDIA | ALTA | CRITICA
   prioridad   String    @default("MEDIA")
+  /// Physical restaurant zone for 3D home: pared_entrada | cocina | salon | barra | exterior | bano | oficina
+  zone        String    @default("oficina")
+  /// Optional local offset hint within the zone (x,y,z as "0.2,0,-0.1")
+  anchorHint  String?
   dueDate     DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
