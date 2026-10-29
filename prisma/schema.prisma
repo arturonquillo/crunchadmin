@@ -1,0 +1,202 @@
+// Crunchadmin — Prisma schema (SQLite for local MVP; swap provider to postgresql in prod)
+// Enum-like fields are Strings (SQLite); allowed values documented in src/lib/labels.ts
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// Auth-ready stub: wire NextAuth/Clerk later; single-operator MVP
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  pendientes     Pendiente[]
+  recetas        Receta[]
+  chatThreads    ChatThread[]
+  reminders      Reminder[]
+  recipeVersions RecetaVersion[]
+}
+
+model Insumo {
+  id            String   @id @default(cuid())
+  name          String
+  baseUnit      String // g, kg, ml, L, ud
+  purchaseNotes String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  recipeLines RecetaLinea[]
+  pendientes  Pendiente[]
+}
+
+model Pendiente {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  /// MEJORAS_FISICAS | COMPRAS | PLANES_FUTUROS | INSUMOS | NUEVAS_RECETAS
+  categoria   String
+  /// PENDIENTE | EN_CURSO | HECHO
+  estado      String    @default("PENDIENTE")
+  /// BAJA | MEDIA | ALTA | CRITICA
+  prioridad   String    @default("MEDIA")
+  dueDate     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  userId     String?
+  user       User?     @relation(fields: [userId], references: [id])
+  insumoId   String?
+  insumo     Insumo?   @relation(fields: [insumoId], references: [id])
+  recetaId   String?
+  receta     Receta?   @relation(fields: [recetaId], references: [id])
+  menuItemId String?
+  menuItem   MenuItem? @relation(fields: [menuItemId], references: [id])
+
+  attachments PendienteAttachment[]
+  reminders   Reminder[]
+}
+
+model PendienteAttachment {
+  id          String    @id @default(cuid())
+  pendienteId String
+  pendiente   Pendiente @relation(fields: [pendienteId], references: [id], onDelete: Cascade)
+  filename    String
+  mimeType    String
+  url         String
+  createdAt   DateTime  @default(now())
+}
+
+model Receta {
+  id               String   @id @default(cuid())
+  name             String
+  notes            String?
+  yieldQty         Float?
+  yieldUnit        String?
+  yieldLabel       String?
+  currentVersionId String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  userId String?
+  user   User? @relation(fields: [userId], references: [id])
+
+  versions   RecetaVersion[]
+  pendientes Pendiente[]
+  menuItems  MenuItem[]
+}
+
+model RecetaVersion {
+  id        String   @id @default(cuid())
+  recetaId  String
+  receta    Receta   @relation(fields: [recetaId], references: [id], onDelete: Cascade)
+  number    Int
+  label     String?
+  changelog String?
+  createdAt DateTime @default(now())
+
+  authorId String?
+  author   User? @relation(fields: [authorId], references: [id])
+
+  lines RecetaLinea[]
+
+  @@unique([recetaId, number])
+}
+
+model RecetaLinea {
+  id             String        @id @default(cuid())
+  versionId      String
+  version        RecetaVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  name           String
+  quantity       Float?
+  unit           String?
+  isToTaste      Boolean       @default(false)
+  canBeScaleBase Boolean       @default(true)
+  sortOrder      Int           @default(0)
+  insumoId       String?
+  insumo         Insumo?       @relation(fields: [insumoId], references: [id])
+}
+
+model MenuItem {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  recetaId String?
+  receta   Receta? @relation(fields: [recetaId], references: [id])
+
+  platformSpecs MenuPlatformSpec[]
+  pendientes    Pendiente[]
+}
+
+model MenuPlatformSpec {
+  id           String   @id @default(cuid())
+  menuItemId   String
+  menuItem     MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  /// FOODIE | TIENDA_PROPIA
+  platform     String
+  displayName  String?
+  price        Float?
+  available    Boolean  @default(true)
+  channelNotes String?
+
+  @@unique([menuItemId, platform])
+}
+
+model Reminder {
+  id          String     @id @default(cuid())
+  pendienteId String?
+  pendiente   Pendiente? @relation(fields: [pendienteId], references: [id], onDelete: Cascade)
+  title       String
+  body        String?
+  dueAt       DateTime
+  dismissed   Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+
+  userId String?
+  user   User? @relation(fields: [userId], references: [id])
+}
+
+model ChatThread {
+  id        String   @id @default(cuid())
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String?
+  user   User? @relation(fields: [userId], references: [id])
+
+  messages ChatMessage[]
+}
+
+model ChatMessage {
+  id          String   @id @default(cuid())
+  threadId    String
+  thread      ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  /// USER | ASSISTANT | SYSTEM
+  role        String
+  content     String
+  actionsJson String?
+  createdAt   DateTime @default(now())
+
+  attachments ChatAttachment[]
+}
+
+model ChatAttachment {
+  id        String      @id @default(cuid())
+  messageId String
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  filename  String
+  mimeType  String
+  url       String
+  kind      String // image | audio | file
+  createdAt DateTime    @default(now())
+}
