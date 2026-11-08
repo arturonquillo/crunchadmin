@@ -12,6 +12,11 @@ import {
   type PendienteEstado,
   type Prioridad,
 } from "@/lib/labels";
+import {
+  ZONE_IDS,
+  ZONE_LABEL,
+  type RestaurantZone,
+} from "@/lib/zones";
 
 type Pendiente = {
   id: string;
@@ -20,6 +25,7 @@ type Pendiente = {
   categoria: PendienteCategoria;
   estado: PendienteEstado;
   prioridad: Prioridad;
+  zone: RestaurantZone;
   dueDate: string | null;
 };
 
@@ -29,23 +35,35 @@ const emptyForm = {
   categoria: "COMPRAS" as PendienteCategoria,
   estado: "PENDIENTE" as PendienteEstado,
   prioridad: "MEDIA" as Prioridad,
+  zone: "oficina" as RestaurantZone,
 };
 
 export default function PendientesPage() {
   const [items, setItems] = useState<Pendiente[]>([]);
   const [filterCat, setFilterCat] = useState<string>("");
+  const [filterZone, setFilterZone] = useState<string>("");
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const zona = params.get("zona");
+    if (zona && ZONE_IDS.includes(zona as RestaurantZone)) {
+      setFilterZone(zona);
+    }
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
-    const qs = filterCat ? `?categoria=${filterCat}` : "";
-    const res = await fetch(`/api/pendientes${qs}`);
+    const qs = new URLSearchParams();
+    if (filterCat) qs.set("categoria", filterCat);
+    if (filterZone) qs.set("zona", filterZone);
+    const res = await fetch(`/api/pendientes?${qs.toString()}`);
     const data = await res.json();
     setItems(data);
     setLoading(false);
-  }, [filterCat]);
+  }, [filterCat, filterZone]);
 
   useEffect(() => {
     load().catch((e) => setError(String(e)));
@@ -84,11 +102,11 @@ export default function PendientesPage() {
   }
 
   return (
-    <>
+    <div className="shell">
       <h1 className="section-title">Pendientes</h1>
       <p className="section-sub">
-        Lista unificada por categoría: mejoras, compras, planes, insumos y nuevas
-        recetas.
+        Lista por categoría y zona del local. En Inicio también aparecen anclados
+        al mapa 3D.
       </p>
 
       <section className="panel">
@@ -129,6 +147,22 @@ export default function PendientesPage() {
                 {CATEGORIAS.map((c) => (
                   <option key={c} value={c}>
                     {CATEGORIA_LABEL[c]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="zone">Zona del local</label>
+              <select
+                id="zone"
+                value={form.zone}
+                onChange={(e) =>
+                  setForm({ ...form, zone: e.target.value as RestaurantZone })
+                }
+              >
+                {ZONE_IDS.map((z) => (
+                  <option key={z} value={z}>
+                    {ZONE_LABEL[z]}
                   </option>
                 ))}
               </select>
@@ -197,6 +231,25 @@ export default function PendientesPage() {
             </button>
           ))}
         </div>
+        <div className="tabs" role="tablist" aria-label="Filtrar zona">
+          <button
+            type="button"
+            className={!filterZone ? "tab active" : "tab"}
+            onClick={() => setFilterZone("")}
+          >
+            Todas las zonas
+          </button>
+          {ZONE_IDS.map((z) => (
+            <button
+              key={z}
+              type="button"
+              className={filterZone === z ? "tab active" : "tab"}
+              onClick={() => setFilterZone(z)}
+            >
+              {ZONE_LABEL[z]}
+            </button>
+          ))}
+        </div>
 
         {loading ? (
           <p className="empty">Cargando…</p>
@@ -208,6 +261,7 @@ export default function PendientesPage() {
               <thead>
                 <tr>
                   <th>Título</th>
+                  <th>Zona</th>
                   <th>Categoría</th>
                   <th>Prioridad</th>
                   <th>Estado</th>
@@ -224,6 +278,23 @@ export default function PendientesPage() {
                           {item.description}
                         </div>
                       )}
+                    </td>
+                    <td>
+                      <select
+                        value={item.zone}
+                        onChange={(e) =>
+                          patch(item.id, {
+                            zone: e.target.value as RestaurantZone,
+                          })
+                        }
+                        aria-label={`Zona de ${item.title}`}
+                      >
+                        {ZONE_IDS.map((z) => (
+                          <option key={z} value={z}>
+                            {ZONE_LABEL[z]}
+                          </option>
+                        ))}
+                      </select>
                     </td>
                     <td>
                       <span className="badge">
@@ -275,6 +346,6 @@ export default function PendientesPage() {
           </div>
         )}
       </section>
-    </>
+    </div>
   );
 }
