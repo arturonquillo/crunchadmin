@@ -213,6 +213,37 @@ export const ASSISTANT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
     type: "function",
     function: {
+      name: "inventory_propose_add_many",
+      description:
+        "Propone sumar VARIAS líneas de insumos (ticket, factura, PDF, Excel, CSV o foto de compra). NUNCA ejecuta de inmediato: crea confirmación. Usala con 1+ ítems extraídos de un adjunto. No inventes cantidades.",
+      parameters: {
+        type: "object",
+        properties: {
+          items: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                quantity: { type: "number" },
+                unit: { type: "string" },
+                category: { type: "string" },
+              },
+              required: ["name", "quantity"],
+            },
+          },
+          source: {
+            type: "string",
+            description: "Nombre del archivo o «foto»",
+          },
+        },
+        required: ["items"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "inventory_list",
       description:
         "Lista el catálogo completo de insumos con stock, unidad, mínimo y categoría. Lectura segura.",
@@ -285,4 +316,5 @@ OBLIGATORIO: para cualquier pedido de cambio (stock, pendientes, borrar, producc
 - Acciones destructivas (borrar insumo, vaciar inventario, borrar pendiente, producción que descuenta): SIEMPRE llamá la tool. Ella te da un código real. Respondé exactamente con ese código: «Para confirmar, respondé con: CONFIRMAR ABC123». NUNCA inventes un código ni escribas «CONFIRMAR <código>» literal.
 - Si el dueño ya manda CONFIRMAR <código> o solo «CONFIRMAR», el sistema lo procesa antes; no hace falta tool.
 - PROHIBIDO decir «eliminé / borré / vacié el inventario» si no recibiste un summary real de una tool. Si no hay tool, pedí confirmación o decí que no se ejecutó nada.
-- Inferí zonas: salón/salon→salon, cocina→cocina, barra→barra, baño→bano, oficina→oficina, exterior→exterior, entrada→pared_entrada.`;
+- Inferí zonas: salón/salon→salon, cocina→cocina, barra→barra, baño→bano, oficina→oficina, exterior→exterior, entrada→pared_entrada.
+- Adjuntos: las fotos llegan por visión. PDF/Excel/CSV llegan como texto extraído (a veces con «Líneas detectadas»). Si es ticket/factura/lista de compra, extraé nombre+cantidad+unidad y llamá inventory_propose_add_many (pide CONFIRMAR; no sumes stock vos mismo). Un solo ítem hablado («agrega 20 kg de harina») sigue siendo inventory_add_stock. Si no hay texto extraíble, pedí una foto más nítida o un CSV.`;

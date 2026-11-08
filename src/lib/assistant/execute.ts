@@ -583,6 +583,48 @@ async function produccionPropose(args: {
   };
 }
 
+async function inventoryProposeAddMany(args: {
+  items?: {
+    name?: string;
+    quantity?: number;
+    unit?: string;
+    category?: string;
+  }[];
+  source?: string;
+}): Promise<ToolResult> {
+  const items = (args.items || [])
+    .map((i) => ({
+      name: String(i.name || "").trim(),
+      quantity: Number(i.quantity),
+      unit: String(i.unit || "ud").trim() || "ud",
+      category: i.category ? String(i.category) : undefined,
+    }))
+    .filter((i) => i.name && i.quantity > 0);
+
+  if (items.length === 0) {
+    return {
+      ok: false,
+      summary: "No hay líneas con nombre y cantidad > 0 para cargar.",
+    };
+  }
+
+  const list = items
+    .map((i) => `• ${i.quantity} ${i.unit} ${i.name}`)
+    .join("\n");
+  const pending = createPendingAction({
+    kind: "inventory_add_many",
+    summary: `Sumar ${items.length} insumo(s)${args.source ? ` desde ${args.source}` : ""}`,
+    payload: { items, source: args.source || null },
+  });
+  return {
+    ok: true,
+    needsConfirm: true,
+    confirmCode: pending.code,
+    summary: `Voy a sumar ${items.length} línea(s) al inventario${args.source ? ` (adjunto: ${args.source})` : ""}:\n${list}\nPara confirmar, respondé: CONFIRMAR ${pending.code}`,
+    data: { items },
+  };
+}
+
 async function produccionConfirm(args: {
   recetaName: string;
   targetQuantity: number;
@@ -661,6 +703,9 @@ export async function executeAssistantTool(
     case "inventory_list":
       result = await inventoryList(args as never);
       break;
+    case "inventory_propose_add_many":
+      result = await inventoryProposeAddMany(args as never);
+      break;
     case "menu_list":
       result = await menuList();
       break;
@@ -702,6 +747,27 @@ export async function executeConfirmedAction(kind: string, payload: Record<strin
     const summary = `Eliminé el pendiente «${payload.title}».`;
     logMutation({ tool: "pendiente_delete:confirmed", ok: true, summary });
     return { ok: true, summary };
+  }
+  if (kind === "inventory_add_many") {
+    const items = (payload.items as {
+      name: string;
+      quantity: number;
+      unit?: string;
+      category?: string;
+    }[]) || [];
+    const summaries: string[] = [];
+    for (const item of items) {
+      const r = await inventoryAddStock({
+        name: item.name,
+        quantity: item.quantity,
+        unit: item.unit || "ud",
+        category: item.category,
+      });
+      summaries.push(r.summary);
+    }
+    const summary = `Cargué ${items.length} insumo(s) al inventario:\n${summaries.join("\n")}`;
+    logMutation({ tool: "inventory_add_many:confirmed", ok: true, summary });
+    return { ok: true, summary, data: { count: items.length } };
   }
   if (kind === "produccion_confirm") {
     // Delegate to internal production POST logic via direct prisma (mirror API)

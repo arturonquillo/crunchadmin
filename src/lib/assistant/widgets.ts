@@ -39,6 +39,9 @@ function kindLabel(kind: string): string {
       return "Eliminar pendiente";
     case "produccion_confirm":
       return "Confirmar producción";
+    case "inventory_add_many":
+    case "inventory_propose_add_many":
+      return "Cargar insumos del adjunto";
     default:
       return "Confirmar acción";
   }
@@ -83,6 +86,9 @@ function inferKindFromSummary(summary: string): string {
     return "produccion_confirm";
   }
   if (s.includes("pendiente")) return "pendiente_delete";
+  if (s.includes("líneas") || s.includes("lineas") || s.includes("adjunto")) {
+    return "inventory_add_many";
+  }
   return "pending";
 }
 
