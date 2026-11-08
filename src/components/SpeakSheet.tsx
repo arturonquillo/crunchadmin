@@ -18,6 +18,10 @@ import {
   type ChoiceWidget,
 } from "@/lib/assistant/widgets";
 import { VoiceMeter, formatElapsed } from "@/components/VoiceMeter";
+import {
+  startLiveTranscription,
+  type LiveSession,
+} from "@/lib/realtime-transcribe";
 
 function IconMic() {
   return (
@@ -171,22 +175,26 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
   const [transcribing, setTranscribing] = useState(false);
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
-  const [whisperOk, setWhisperOk] = useState<boolean | null>(null);
+  const [openaiOk, setOpenaiOk] = useState<boolean | null>(null);
   const [recorderSupport] = useState(() => detectRecorderSupport());
   const [booting, setBooting] = useState(true);
   const [liveStream, setLiveStream] = useState<MediaStream | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
+  const [livePartial, setLivePartial] = useState("");
+  const [liveMode, setLiveMode] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
+  const liveSessionRef = useRef<LiveSession | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const mimeRef = useRef<string>("");
   const startedAtRef = useRef<number>(0);
   const baseTextRef = useRef("");
+  const preRecordTextRef = useRef("");
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const micReady = Boolean(whisperOk && recorderSupport.ok);
+  const micReady = Boolean(openaiOk && recorderSupport.ok);
   const micBusy = recording || transcribing;
 
   const hydrateMessage = useCallback((m: ChatMessage): ChatMessage => {
@@ -210,10 +218,10 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
   useEffect(() => {
     Promise.all([
       loadHistory(),
-      fetch("/api/transcribe")
+      fetch("/api/transcribe/session")
         .then((r) => r.json())
-        .then((d) => setWhisperOk(Boolean(d.configured)))
-        .catch(() => setWhisperOk(false)),
+        .then((d) => setOpenaiOk(Boolean(d.configured)))
+        .catch(() => setOpenaiOk(false)),
     ])
       .catch((err) => setStatus(String(err)))
       .finally(() => setBooting(false));
@@ -284,7 +292,82 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
     [appendTranscript]
   );
 
+  const applyLiveText = useCallback((spoken: string) => {
+    const base = preRecordTextRef.current.trim();
+    const next = [base, spoken.trim()].filter(Boolean).join(" ").trim();
+    baseTextRef.current = next;
+    setText(next);
+  }, []);
+
+  const startWhisperFallback = useCallback(async () => {
+    setLiveMode(false);
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        channelCount: 1,
+      },
+    });
+    mediaStreamRef.current = stream;
+    setLiveStream(stream);
+    chunksRef.current = [];
+    const mime = recorderSupport.mimeType || "";
+    mimeRef.current = mime;
+    const recorder = mime
+      ? new MediaRecorder(stream, { mimeType: mime })
+      : new MediaRecorder(stream);
+
+    recorder.ondataavailable = (ev) => {
+      if (ev.data && ev.data.size > 0) chunksRef.current.push(ev.data);
+    };
+    recorder.onerror = () => {
+      setStatus("Error al grabar audio.");
+      setRecording(false);
+      releaseStream();
+    };
+    recorder.onstop = () => {
+      setRecording(false);
+      const type = mimeRef.current || recorder.mimeType || "audio/webm";
+      const blob = new Blob(chunksRef.current, { type });
+      chunksRef.current = [];
+      releaseStream();
+      mediaRecorderRef.current = null;
+      if (blob.size < 400) {
+        setStatus("Grabación muy corta. Hablá un segundo más y usá Stop.");
+        return;
+      }
+      void transcribeBlob(blob, type);
+    };
+
+    mediaRecorderRef.current = recorder;
+    recorder.start(250);
+    setRecording(true);
+    setStatus("Grabando (Whisper al final)…");
+  }, [recorderSupport, releaseStream, transcribeBlob]);
+
   const stopRecording = useCallback(() => {
+    const live = liveSessionRef.current;
+    if (live) {
+      liveSessionRef.current = null;
+      setRecording(false);
+      setTranscribing(true);
+      setStatus("Cerrando turno en vivo…");
+      void live
+        .stop()
+        .then((finalText) => {
+          if (finalText) applyLiveText(finalText);
+          setLivePartial("");
+          setStatus(finalText ? "Texto listo — podés editar o Enviar." : null);
+        })
+        .catch((err) => setStatus(String(err)))
+        .finally(() => {
+          setTranscribing(false);
+          setLiveStream(null);
+          setLiveMode(false);
+        });
+      return;
+    }
+
     const rec = mediaRecorderRef.current;
     if (rec && rec.state !== "inactive") {
       try {
@@ -296,11 +379,12 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
       setRecording(false);
       releaseStream();
     }
-  }, [releaseStream]);
+  }, [releaseStream, applyLiveText]);
 
   const startRecording = useCallback(async () => {
     setStatus(null);
-    if (!whisperOk) {
+    setLivePartial("");
+    if (!openaiOk) {
       setStatus(
         "Transcripción por IA no disponible (falta OPENAI_API_KEY). Escribí el mensaje."
       );
@@ -311,65 +395,56 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
       return;
     }
 
+    preRecordTextRef.current = text;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          channelCount: 1,
+      setStatus("Conectando transcripción en vivo…");
+      const session = await startLiveTranscription({
+        onPartial: (spoken) => {
+          setLivePartial(spoken);
+          applyLiveText(spoken);
         },
+        onFinal: (spoken) => {
+          setLivePartial(spoken);
+          applyLiveText(spoken);
+        },
+        onStatus: (msg) => setStatus(msg),
+        onError: (msg) => setStatus(msg),
       });
-      mediaStreamRef.current = stream;
-      setLiveStream(stream);
-      chunksRef.current = [];
-      const mime = recorderSupport.mimeType || "";
-      mimeRef.current = mime;
-      const recorder = mime
-        ? new MediaRecorder(stream, { mimeType: mime })
-        : new MediaRecorder(stream);
-
-      recorder.ondataavailable = (ev) => {
-        if (ev.data && ev.data.size > 0) chunksRef.current.push(ev.data);
-      };
-      recorder.onerror = () => {
-        setStatus("Error al grabar audio.");
-        setRecording(false);
-        releaseStream();
-      };
-      recorder.onstop = () => {
-        setRecording(false);
-        const type = mimeRef.current || recorder.mimeType || "audio/webm";
-        const blob = new Blob(chunksRef.current, { type });
-        chunksRef.current = [];
-        releaseStream();
-        mediaRecorderRef.current = null;
-        if (blob.size < 400) {
-          setStatus("Grabación muy corta. Hablá un segundo más y usá Stop.");
-          return;
-        }
-        void transcribeBlob(blob, type);
-      };
-
-      mediaRecorderRef.current = recorder;
-      // timeslice helps some iOS builds flush audio chunks
-      recorder.start(250);
+      liveSessionRef.current = session;
+      mediaStreamRef.current = session.stream;
+      setLiveStream(session.stream);
+      setLiveMode(true);
       setRecording(true);
-      setStatus(null);
     } catch (err) {
-      releaseStream();
       const name = err instanceof DOMException ? err.name : "";
       if (name === "NotAllowedError" || name === "PermissionDeniedError") {
         setStatus(
           "Permiso de micrófono denegado. Activá el mic en Ajustes → Safari y reintentá."
         );
-      } else {
-        setStatus(
-          err instanceof Error ? err.message : "No se pudo abrir el micrófono."
-        );
+        setRecording(false);
+        return;
       }
-      setRecording(false);
+      setStatus(
+        `Realtime no disponible (${err instanceof Error ? err.message : "error"}). Usando Whisper…`
+      );
+      try {
+        await startWhisperFallback();
+      } catch (fallbackErr) {
+        setStatus(
+          fallbackErr instanceof Error
+            ? fallbackErr.message
+            : "No se pudo abrir el micrófono."
+        );
+        setRecording(false);
+      }
     }
-  }, [whisperOk, recorderSupport, releaseStream, transcribeBlob]);
+  }, [
+    openaiOk,
+    recorderSupport,
+    text,
+    applyLiveText,
+    startWhisperFallback,
+  ]);
 
   const toggleMic = useCallback(() => {
     if (transcribing) return;
@@ -384,6 +459,9 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
       } catch {
         /* ignore */
       }
+      const live = liveSessionRef.current;
+      liveSessionRef.current = null;
+      if (live) void live.stop().catch(() => undefined);
       releaseStream();
     };
   }, [releaseStream]);
@@ -470,7 +548,7 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
   }
 
   const micHint =
-    whisperOk === false
+    openaiOk === false
       ? "Sin OPENAI_API_KEY no hay dictado por IA. Escribí el mensaje."
       : !recorderSupport.ok
         ? recorderSupport.reason || null
@@ -493,7 +571,7 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
       <div className="hablar-panel">
         <header className="hablar-head">
           <div className="hablar-head-text">
-            <p className="hablar-kicker">Asistente · Whisper</p>
+            <p className="hablar-kicker">Asistente · Live STT</p>
             <h2>Hablar</h2>
           </div>
           <button
@@ -515,8 +593,7 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
             <div className="hablar-empty">
               <p>Conversá con el sistema.</p>
               <p className="muted">
-                Tocá el mic, hablá, tocá de nuevo: la IA pasa tu voz a texto
-                (mejor que el dictado nativo de iPhone).
+                Tocá el mic y hablá: el texto aparece en vivo. Stop para cortar.
               </p>
             </div>
           )}
@@ -616,10 +693,17 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
                 <div className="hablar-rec-main">
                   <div className="hablar-rec-top">
                     <span className="hablar-rec-dot" aria-hidden />
-                    <span className="hablar-rec-label">Recording</span>
+                    <span className="hablar-rec-label">
+                      {liveMode ? "Live" : "Recording"}
+                    </span>
                     <span className="hablar-rec-timer">{formatElapsed(elapsedMs)}</span>
                   </div>
                   <VoiceMeter stream={liveStream} active={recording} />
+                  {livePartial && (
+                    <p className="hablar-live-partial" aria-live="polite">
+                      {livePartial}
+                    </p>
+                  )}
                 </div>
               </>
             ) : (
