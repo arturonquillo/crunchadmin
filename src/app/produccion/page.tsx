@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 
 type RecetaOpt = {
   id: string;
@@ -64,6 +65,9 @@ type HistoryItem = {
 };
 
 export default function ProduccionPage() {
+  const t = useTranslations("Produccion");
+  const tc = useTranslations("Common");
+  const locale = useLocale();
   const [recetas, setRecetas] = useState<RecetaOpt[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [recetaId, setRecetaId] = useState("");
@@ -131,7 +135,7 @@ export default function ProduccionPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Error al calcular");
+        setError(data.error || t("calcError"));
         setPreview(null);
         return;
       }
@@ -161,18 +165,16 @@ export default function ProduccionPage() {
       const data = await res.json();
       if (res.status === 409) {
         setPreview(data.preview);
-        setError(
-          "Inventario insuficiente. Revisá lo que falta comprar o confirmá igual (descuenta lo disponible)."
-        );
+        setError(t("insufficient"));
         return;
       }
       if (!res.ok) {
-        setError(data.error || "Error al confirmar");
+        setError(data.error || t("confirmError"));
         return;
       }
       setPreview(null);
       await load();
-      alert("Producción registrada y stock descontado.");
+      alert(t("success"));
     } finally {
       setBusy(false);
     }
@@ -180,17 +182,14 @@ export default function ProduccionPage() {
 
   return (
     <div className="shell">
-      <h1 className="section-title">Producción</h1>
-      <p className="section-sub">
-        Partí de una ficha técnica: por rendimiento (ej. 5 kg de marinado) o por cantidad de un
-        insumo (ej. 5 L de aceite). Al confirmar, se descuenta el inventario.
-      </p>
+      <h1 className="section-title">{t("title")}</h1>
+      <p className="section-sub">{t("subtitle")}</p>
 
       <section className="panel">
         <form onSubmit={onPreview}>
           <div className="form-grid">
             <div className="field" style={{ gridColumn: "1 / -1" }}>
-              <label htmlFor="prod-receta">Receta / ficha</label>
+              <label htmlFor="prod-receta">{t("fieldReceta")}</label>
               <select
                 id="prod-receta"
                 value={recetaId}
@@ -209,7 +208,7 @@ export default function ProduccionPage() {
             </div>
 
             <div className="field" style={{ gridColumn: "1 / -1" }}>
-              <label>Modo de escalado</label>
+              <label>{t("scaleMode")}</label>
               <div className="seg-control">
                 <button
                   type="button"
@@ -217,21 +216,21 @@ export default function ProduccionPage() {
                   onClick={() => setMode("yield")}
                   disabled={!selected?.yieldQty}
                 >
-                  Por rendimiento
+                  {t("byYield")}
                 </button>
                 <button
                   type="button"
                   className={mode === "line" ? "active" : ""}
                   onClick={() => setMode("line")}
                 >
-                  Por un insumo
+                  {t("byLine")}
                 </button>
               </div>
             </div>
 
             {mode === "line" && version && (
               <div className="field" style={{ gridColumn: "1 / -1" }}>
-                <label htmlFor="prod-base">Ingrediente base</label>
+                <label htmlFor="prod-base">{t("baseIngredient")}</label>
                 <select
                   id="prod-base"
                   value={baseLineId}
@@ -249,7 +248,7 @@ export default function ProduccionPage() {
             )}
 
             <div className="field">
-              <label htmlFor="prod-qty">Cantidad objetivo</label>
+              <label htmlFor="prod-qty">{t("targetQty")}</label>
               <input
                 id="prod-qty"
                 type="number"
@@ -261,7 +260,7 @@ export default function ProduccionPage() {
               />
             </div>
             <div className="field">
-              <label htmlFor="prod-unit">Unidad</label>
+              <label htmlFor="prod-unit">{t("unit")}</label>
               <input
                 id="prod-unit"
                 value={targetUnit}
@@ -274,7 +273,7 @@ export default function ProduccionPage() {
           {error && <p className="error">{error}</p>}
           <div className="form-actions">
             <button className="btn" type="submit" disabled={busy}>
-              {busy ? "Calculando…" : "Calcular necesidades"}
+              {busy ? t("calculating") : t("calcNeeds")}
             </button>
           </div>
         </form>
@@ -283,17 +282,24 @@ export default function ProduccionPage() {
       {preview && (
         <section className="panel" style={{ marginTop: "1rem" }}>
           <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>
-            Vista previa · factor ×{preview.scale.factor}
+            {t("previewTitle", { factor: preview.scale.factor })}
           </h2>
           <p className="section-sub" style={{ marginTop: 0 }}>
-            Base: {preview.scale.baseName} → {preview.scale.targetQuantity} {targetUnit}
+            {t("previewBase", {
+              base: preview.scale.baseName,
+              qty: preview.scale.targetQuantity,
+              unit: targetUnit,
+            })}
             {preview.scale.scaledYield &&
-              ` · rendimiento ~ ${preview.scale.scaledYield.quantity} ${preview.scale.scaledYield.unit}`}
+              t("previewYield", {
+                qty: preview.scale.scaledYield.quantity,
+                unit: preview.scale.scaledYield.unit,
+              })}
           </p>
 
           {preview.missing.length > 0 && (
             <div className="warn-box">
-              <strong>Falta comprar:</strong>
+              <strong>{t("needBuy")}</strong>
               <ul>
                 {preview.missing.map((m) => (
                   <li key={m.name}>
@@ -307,9 +313,9 @@ export default function ProduccionPage() {
           <table className="data">
             <thead>
               <tr>
-                <th>Ingrediente</th>
-                <th>Necesario</th>
-                <th>Stock</th>
+                <th>{t("colIngredient")}</th>
+                <th>{t("colNeed")}</th>
+                <th>{t("colStock")}</th>
                 <th></th>
               </tr>
             </thead>
@@ -318,14 +324,16 @@ export default function ProduccionPage() {
                 <tr key={l.lineId} className={!l.available ? "row-warn" : undefined}>
                   <td>{l.name}</td>
                   <td>
-                    {l.quantity != null ? `${l.quantity} ${l.unit || ""}` : l.reason || "—"}
+                    {l.quantity != null
+                      ? `${l.quantity} ${l.unit || ""}`
+                      : l.reason || tc("dash")}
                   </td>
                   <td>
                     {l.onHand != null
                       ? `${l.onHand} ${l.onHandUnit}`
-                      : l.reason || "—"}
+                      : l.reason || tc("dash")}
                   </td>
-                  <td>{l.available ? "OK" : "Falta"}</td>
+                  <td>{l.available ? t("ok") : t("missing")}</td>
                 </tr>
               ))}
             </tbody>
@@ -338,7 +346,7 @@ export default function ProduccionPage() {
               disabled={busy || (!preview.canConfirm && preview.missing.length === 0)}
               onClick={() => onConfirm(false)}
             >
-              Confirmar y descontar
+              {t("confirmDeduct")}
             </button>
             {!preview.canConfirm && (
               <button
@@ -346,16 +354,12 @@ export default function ProduccionPage() {
                 type="button"
                 disabled={busy}
                 onClick={() => {
-                  if (
-                    confirm(
-                      "Hay faltantes. Se descontará solo lo disponible. ¿Continuar?"
-                    )
-                  ) {
+                  if (confirm(t("confirmShort"))) {
                     onConfirm(true);
                   }
                 }}
               >
-                Confirmar con faltantes
+                {t("confirmWithMissing")}
               </button>
             )}
           </div>
@@ -363,9 +367,9 @@ export default function ProduccionPage() {
       )}
 
       <section className="panel" style={{ marginTop: "1rem" }}>
-        <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Historial</h2>
+        <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>{t("history")}</h2>
         {history.length === 0 ? (
-          <p className="empty">Todavía no hay producciones.</p>
+          <p className="empty">{t("empty")}</p>
         ) : (
           <ul className="inv-list">
             {history.map((h) => (
@@ -373,9 +377,11 @@ export default function ProduccionPage() {
                 <div>
                   <strong>{h.title}</strong>
                   <div className="inv-meta">
-                    {new Date(h.createdAt).toLocaleString("es")} · {h.receta.name} · ×
+                    {new Date(h.createdAt).toLocaleString(locale)} · {h.receta.name} · ×
                     {h.factor}
-                    {h.missingJson && <span className="inv-low-tag"> con faltantes</span>}
+                    {h.missingJson && (
+                      <span className="inv-low-tag">{t("withMissing")}</span>
+                    )}
                   </div>
                 </div>
               </li>

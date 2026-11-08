@@ -4,6 +4,7 @@ import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import type { Mesh } from "three";
+import { useTranslations } from "next-intl";
 import { ZONES, type RestaurantZone } from "@/lib/zones";
 
 type Props = {
@@ -23,6 +24,7 @@ export function ZoneHotspot({
   onSelect,
 }: Props) {
   const def = ZONES[zone];
+  const tl = useTranslations("Labels");
   const meshRef = useRef<Mesh>(null);
   useFrame(({ clock }) => {
     if (!meshRef.current) return;
@@ -78,7 +80,7 @@ export function ZoneHotspot({
             if (!sheetOpen) onSelect(zone);
           }}
         >
-          <span className="zone-pin-label">{def.label}</span>
+          <span className="zone-pin-label">{tl(`zone.${zone}`)}</span>
           {count > 0 && <span className="zone-pin-count">{count}</span>}
         </button>
       </Html>

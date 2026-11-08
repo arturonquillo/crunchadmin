@@ -2,19 +2,25 @@
 
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { resolveZone, type RestaurantZone } from "@/lib/zones";
 import { ZonePanel, type PanelPendiente } from "./ZonePanel";
+
+function SceneLoading() {
+  const t = useTranslations("Home3d");
+  return (
+    <div className="restaurant-canvas restaurant-loading">
+      <p>{t("loading")}</p>
+    </div>
+  );
+}
 
 const RestaurantScene = dynamic(
   () =>
     import("./RestaurantScene").then((m) => m.RestaurantScene),
   {
     ssr: false,
-    loading: () => (
-      <div className="restaurant-canvas restaurant-loading">
-        <p>Cargando el local en 3D…</p>
-      </div>
-    ),
+    loading: () => <SceneLoading />,
   }
 );
 
@@ -23,6 +29,7 @@ type Props = {
 };
 
 export function HomeRestaurant({ pendientes }: Props) {
+  const t = useTranslations("Home3d");
   const [focusedZone, setFocusedZone] = useState<RestaurantZone | null>(null);
 
   const normalized = useMemo(
@@ -42,14 +49,8 @@ export function HomeRestaurant({ pendientes }: Props) {
         <div className="home-3d-brand">
           {/* Brand lives only in the sticky nav — no duplicate hero title */}
           <h1 className="sr-only">Crunchadmin</h1>
-          <p>
-            Nivel jugable del local: tocá mesas, barra, cocina o la pared — el
-            pendiente se refleja en la escena.
-          </p>
-          <p className="home-3d-hint">
-            {openCount} abiertos · alejate para ver todo · pellizca / rueda para
-            zoom · hover = brillo
-          </p>
+          <p>{t("lead")}</p>
+          <p className="home-3d-hint">{t("hint", { count: openCount })}</p>
         </div>
       </div>
 

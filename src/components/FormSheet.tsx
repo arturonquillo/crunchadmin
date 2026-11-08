@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useTranslations } from "next-intl";
 
 type Props = {
   open: boolean;
@@ -14,10 +15,13 @@ type Props = {
 export function FormSheet({
   open,
   title,
-  kicker = "Nuevo",
+  kicker,
   onClose,
   children,
 }: Props) {
+  const t = useTranslations("Common");
+  const kickerText = kicker ?? t("new");
+
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
@@ -41,11 +45,11 @@ export function FormSheet({
         <div className="form-sheet-handle" aria-hidden />
         <div className="form-sheet-head">
           <div>
-            <p className="form-sheet-kicker">{kicker}</p>
+            <p className="form-sheet-kicker">{kickerText}</p>
             <h2>{title}</h2>
           </div>
           <button type="button" className="btn ghost" onClick={onClose}>
-            Cerrar
+            {t("close")}
           </button>
         </div>
         <div className="form-sheet-body">{children}</div>
