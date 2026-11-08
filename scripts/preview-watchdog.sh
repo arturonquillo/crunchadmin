@@ -49,15 +49,36 @@ start_tunnel() {
   ensure_session "$TUN_SESSION"
   tmux_bin send-keys -t "$TUN_SESSION:0.0" C-c
   sleep 1
-  # Clear pane noise then launch
-  tmux_bin send-keys -t "$TUN_SESSION:0.0" \
-    "npx --yes cloudflared tunnel --url http://127.0.0.1:3000" C-m
+  # Prefer installed binary (npx cloudflared not always on PATH in tmux shells)
+  local cf_bin="${CLOUDFLARED_BIN:-}"
+  if [[ -z "$cf_bin" ]]; then
+    cf_bin=$(command -v cloudflared 2>/dev/null || true)
+  fi
+  if [[ -z "$cf_bin" ]]; then
+    cf_bin=$(find /home/ubuntu/.npm/_npx -path '*/cloudflared/bin/cloudflared' -type f 2>/dev/null | head -1 || true)
+  fi
+  if [[ -z "$cf_bin" || ! -x "$cf_bin" ]]; then
+    log "cloudflared binary not found — falling back to npx"
+    tmux_bin send-keys -t "$TUN_SESSION:0.0" \
+      "npx --yes cloudflared tunnel --url http://127.0.0.1:3000 --protocol http2 2>&1 | tee /tmp/crunchadmin-tunnel.log" C-m
+  else
+    log "Using cloudflared at $cf_bin"
+    tmux_bin send-keys -t "$TUN_SESSION:0.0" \
+      "'$cf_bin' tunnel --url http://127.0.0.1:3000 --protocol http2 2>&1 | tee /tmp/crunchadmin-tunnel.log" C-m
+  fi
 }
 
 extract_tunnel_url() {
-  tmux_bin capture-pane -t "$TUN_SESSION:0.0" -p -J -S -400 2>/dev/null \
+  local from_log from_pane
+  from_log=$(rg -o 'https://[a-zA-Z0-9.-]+\.trycloudflare\.com' /tmp/crunchadmin-tunnel.log 2>/dev/null | tail -1 || true)
+  if [[ -n "$from_log" ]]; then
+    echo "$from_log"
+    return 0
+  fi
+  from_pane=$(tmux_bin capture-pane -t "$TUN_SESSION:0.0" -p -J -S -400 2>/dev/null \
     | rg -o 'https://[a-zA-Z0-9.-]+\.trycloudflare\.com' \
-    | head -1
+    | tail -1 || true)
+  echo "$from_pane"
 }
 
 write_url_file() {
@@ -73,6 +94,9 @@ Updated: $(date -u +%Y-%m-%dT%H:%M:%SZ) UTC
 $url
 
 - Home: $url/
+- Inventario: $url/inventario
+- Producción: $url/produccion
+- Recetas: $url/recetas
 - Pendientes: $url/pendientes
 
 ## Local
@@ -90,7 +114,7 @@ EOF
 }
 
 ensure_next_healthy() {
-  if http_ok "$LOCAL_URL/" && http_ok "$LOCAL_URL/pendientes"; then
+  if http_ok "$LOCAL_URL/" && http_ok "$LOCAL_URL/inventario"; then
     return 0
   fi
   log "Next unhealthy — restarting"
@@ -113,7 +137,7 @@ ensure_next_healthy() {
 ensure_tunnel_healthy() {
   local url
   url=$(extract_tunnel_url)
-  if [[ -n "$url" ]] && http_ok "$url/" && http_ok "$url/pendientes"; then
+  if [[ -n "$url" ]] && http_ok "$url/" && http_ok "$url/inventario"; then
     write_url_file "$url"
     return 0
   fi
