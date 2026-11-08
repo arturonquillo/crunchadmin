@@ -984,109 +984,309 @@ table.data th {
   color: var(--muted);
 }
 
-.speak-sheet-root {
-  position: fixed;
-  inset: 0;
-  z-index: 90;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-}
-
-.speak-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(26, 34, 24, 0.45);
-}
-
-.speak-sheet {
-  position: relative;
-  width: min(520px, 100%);
-  max-height: min(78dvh, 640px);
-  overflow: auto;
-  background: #fffaf2;
-  border-radius: 18px 18px 0 0;
-  border: 1px solid var(--line);
-  padding: 1rem 1.1rem calc(1.2rem + env(safe-area-inset-bottom, 0px));
-  box-shadow: 0 -12px 36px rgba(26, 34, 24, 0.16);
-  animation: rise 280ms ease-out both;
-}
-
-.speak-sheet-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 0.75rem;
-  margin-bottom: 0.35rem;
-}
-
-.speak-sheet-head h2 {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 1.35rem;
-}
-
-.speak-mic-row {
-  margin-bottom: 0.75rem;
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-}
-
-.speak-mic-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-}
-
-.speak-mic-btn.listening {
-  background: var(--warn);
-  color: #fff;
-  animation: pulse-mark 1.4s ease-in-out infinite;
-}
-
-.speak-mic-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.speak-live-dot {
-  width: 0.65rem;
-  height: 0.65rem;
-  border-radius: 50%;
-  background: #c2410c;
-  box-shadow: 0 0 0 4px rgba(194, 65, 12, 0.2);
-}
-
-.speak-interim {
-  margin: 0 0 0.55rem;
-  min-height: 1.25rem;
-  color: var(--muted);
-  font-size: 0.95rem;
-}
-
-.speak-status {
-  margin: 0 0 0.65rem;
-  color: var(--accent-deep);
-  font-size: 0.9rem;
-}
-
 .speak-unsupported {
-  margin: 0 0 0.85rem;
-  padding: 0.65rem 0.8rem;
+  margin: 0;
+  padding: 0.55rem 0.75rem;
   border-radius: 10px;
   background: rgba(180, 83, 9, 0.1);
   border: 1px solid rgba(180, 83, 9, 0.28);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: var(--ink-soft);
 }
 
-.speak-reply {
-  background: var(--accent-soft);
-  border-radius: 10px;
-  padding: 0.75rem 0.85rem;
+/* —— Hablar full chat module —— */
+.hablar-root {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.hablar-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(18, 24, 16, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.hablar-panel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 100%);
+  height: min(100dvh, 100%);
+  max-height: 100dvh;
+  margin: 0 auto;
+  background:
+    radial-gradient(120% 80% at 10% -10%, rgba(90, 122, 72, 0.14), transparent 55%),
+    linear-gradient(180deg, #f7f3e8 0%, #efe8d8 100%);
+  border-left: 1px solid rgba(26, 34, 24, 0.08);
+  border-right: 1px solid rgba(26, 34, 24, 0.08);
+  box-shadow: 0 0 48px rgba(18, 24, 16, 0.28);
+  animation: rise 280ms ease-out both;
+}
+
+.hablar-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: calc(0.75rem + env(safe-area-inset-top, 0px)) 1rem 0.65rem;
+  border-bottom: 1px solid rgba(26, 34, 24, 0.08);
+  background: rgba(247, 243, 232, 0.92);
+}
+
+.hablar-kicker {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hablar-head h2 {
+  margin: 0.05rem 0 0;
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  color: var(--ink);
+}
+
+.hablar-close {
+  appearance: none;
+  border: 1px solid rgba(26, 34, 24, 0.14);
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--ink);
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.hablar-close:active {
+  transform: scale(0.96);
+}
+
+.hablar-log {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 1rem 1rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.hablar-empty {
+  margin: 2.5rem auto;
+  text-align: center;
+  color: var(--ink-soft);
+  max-width: 18rem;
+}
+
+.hablar-empty .muted {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.hablar-bubble {
+  max-width: 92%;
+  padding: 0.7rem 0.85rem;
+  border-radius: 14px;
+  animation: rise 220ms ease-out both;
+}
+
+.hablar-bubble.user {
+  align-self: flex-end;
+  background: #2f3d2a;
+  color: #f7f4ea;
+  border-bottom-right-radius: 4px;
+}
+
+.hablar-bubble.assistant {
+  align-self: flex-start;
+  background: rgba(255, 252, 245, 0.95);
+  color: var(--ink);
+  border: 1px solid rgba(26, 34, 24, 0.08);
+  border-bottom-left-radius: 4px;
+}
+
+.hablar-meta {
+  display: block;
+  font-size: 0.7rem;
+  opacity: 0.7;
+  margin-bottom: 0.3rem;
+}
+
+.hablar-bubble-body {
   white-space: pre-wrap;
-  font-size: 0.95rem;
+  font-size: 0.98rem;
+  line-height: 1.4;
+}
+
+.hablar-typing-dots {
+  display: flex;
+  gap: 0.3rem;
+  padding: 0.25rem 0;
+}
+
+.hablar-typing-dots span {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--muted);
+  animation: pulse-mark 1.1s ease-in-out infinite;
+}
+
+.hablar-typing-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.hablar-typing-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.chat-widget {
+  margin-top: 0.7rem;
+  padding: 0.7rem 0.75rem;
+  border-radius: 12px;
+  background: rgba(90, 122, 72, 0.08);
+  border: 1px solid rgba(90, 122, 72, 0.22);
+}
+
+.chat-widget.spent {
+  opacity: 0.55;
+}
+
+.chat-widget-title {
+  margin: 0 0 0.2rem;
+  font-weight: 650;
+  font-size: 0.92rem;
+}
+
+.chat-widget-summary {
+  margin: 0 0 0.65rem;
+  font-size: 0.86rem;
+  color: var(--ink-soft);
+  white-space: pre-wrap;
+}
+
+.chat-widget-spent {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.chat-widget-actions {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.chat-widget-actions.wrap {
+  flex-wrap: wrap;
+}
+
+.chat-widget-confirm {
+  background: #2f3d2a;
+  color: #f7f4ea;
+}
+
+.chat-choice {
+  font-size: 0.86rem !important;
+  padding: 0.4rem 0.7rem !important;
+}
+
+.hablar-banner {
+  margin: 0 1rem 0.35rem;
+}
+
+.hablar-status,
+.hablar-interim {
+  margin: 0 1rem 0.25rem;
+  font-size: 0.85rem;
+  color: var(--accent-deep);
+}
+
+.hablar-composer {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.45rem;
+  align-items: end;
+  padding: 0.65rem 0.85rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid rgba(26, 34, 24, 0.08);
+  background: rgba(247, 243, 232, 0.96);
+}
+
+.hablar-input {
+  width: 100%;
+  min-height: 2.6rem;
+  max-height: 7rem;
+  resize: none;
+  border-radius: 14px;
+  border: 1px solid rgba(26, 34, 24, 0.14);
+  background: #fffef9;
+  padding: 0.65rem 0.8rem;
+  font: inherit;
+  color: var(--ink);
+}
+
+.hablar-mic,
+.hablar-send {
+  appearance: none;
+  border: none;
+  width: 2.7rem;
+  height: 2.7rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.hablar-mic {
+  background: rgba(47, 61, 42, 0.1);
+  color: var(--ink);
+}
+
+.hablar-mic.listening {
+  background: #c2410c;
+  color: #fff;
+  animation: pulse-mark 1.3s ease-in-out infinite;
+}
+
+.hablar-mic:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.hablar-send {
+  background: #2f3d2a;
+  color: #f7f4ea;
+}
+
+.hablar-send:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+@media (min-width: 720px) {
+  .hablar-root {
+    align-items: center;
+    padding: 1.25rem;
+  }
+  .hablar-panel {
+    height: min(860px, calc(100dvh - 2.5rem));
+    border-radius: 18px;
+    border: 1px solid rgba(26, 34, 24, 0.1);
+    overflow: hidden;
+  }
 }
 
 .inv-list {

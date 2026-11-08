@@ -12,6 +12,8 @@ import {
   takePendingByCode,
   takeLatestPending,
   peekLatestPending,
+  listPendingActions,
+  cancelPendingByCode,
   matchesConfirmSecret,
   getConfirmSecret,
 } from "@/lib/assistant/confirm-store";
@@ -19,9 +21,19 @@ import {
   executeAssistantTool,
   executeConfirmedAction,
 } from "@/lib/assistant/execute";
+import { widgetsFromToolResults } from "@/lib/assistant/widgets";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
+
+function isBareCancel(text: string): boolean {
+  return /^(cancelar|cancelo|no)\s*[.!]?$/i.test(text.trim());
+}
+
+function parseCancelCode(text: string): string | null {
+  const m = text.trim().match(/^CANCELAR\s+([A-Za-z0-9_-]+)\s*$/i);
+  return m ? m[1].toUpperCase() : null;
+}
 
 /** Bare «CONFIRMAR» / «confirmo» without the 6-char code — owner often replies that way. */
 function isBareConfirm(text: string): boolean {
@@ -149,10 +161,17 @@ export async function GET() {
     orderBy: { createdAt: "asc" },
     include: { attachments: true },
   });
+  const pending = listPendingActions().map((p) => ({
+    code: p.code,
+    kind: p.kind,
+    summary: p.summary,
+    expiresAt: p.expiresAt,
+  }));
   return NextResponse.json({
     threadId: thread.id,
     openaiConfigured: isOpenAIConfigured(),
     confirmSecretConfigured: Boolean(getConfirmSecret()),
+    pending,
     messages,
   });
 }
@@ -197,6 +216,12 @@ export async function POST(req: NextRequest) {
   } else {
     const body = await req.json();
     text = String(body.message ?? "").trim();
+    // Widget cancel: { action: "cancel_pending", code?: "ABC123" }
+    if (body.action === "cancel_pending") {
+      text = body.code
+        ? `CANCELAR ${String(body.code).toUpperCase()}`
+        : "CANCELAR";
+    }
   }
 
   if (!text && savedAttachments.length === 0) {
@@ -220,8 +245,40 @@ export async function POST(req: NextRequest) {
     include: { attachments: true },
   });
 
+  // —— Cancel gate (widget «Cancelar») ——
+  const cancelCode = text ? parseCancelCode(text) : null;
+  const bareCancel = text ? isBareCancel(text) || /^CANCELAR\s*$/i.test(text.trim()) : false;
+  if (cancelCode || bareCancel) {
+    const cancelled = cancelCode
+      ? cancelPendingByCode(cancelCode)
+      : (() => {
+          const latest = peekLatestPending();
+          return latest ? cancelPendingByCode(latest.code) : null;
+        })();
+    const assistantContent = cancelled
+      ? `Cancelé la acción pendiente «${cancelled.summary}» (código ${cancelled.code}). No se cambió nada.`
+      : "No había ninguna acción pendiente para cancelar.";
+    const assistantMsg = await prisma.chatMessage.create({
+      data: {
+        threadId: thread.id,
+        role: "ASSISTANT",
+        content: assistantContent,
+        actionsJson: JSON.stringify({
+          cancelled: Boolean(cancelled),
+          code: cancelled?.code || null,
+        }),
+      },
+    });
+    return NextResponse.json({
+      stub: false,
+      userMessage: userMsg,
+      assistantMessage: assistantMsg,
+      widgets: [],
+    });
+  }
+
   // —— Fast-path: destructive intents staged server-side (never trust the model alone) ——
-  if (text && !parseConfirmCode(text)) {
+  if (text && !parseConfirmCode(text) && !isBareConfirm(text)) {
     const lower = text.toLowerCase();
     const clearAll =
       /elimin[ae].*todos?\s+los\s+insumos|borr[ae].*todos?\s+los\s+insumos|vaciar?\s+(el\s+)?inventario|clear\s+all\s+inventory/.test(
@@ -232,12 +289,17 @@ export async function POST(req: NextRequest) {
     );
     if (clearAll) {
       const staged = await executeAssistantTool("inventory_clear_all", "{}");
+      const widgets = widgetsFromToolResults([staged]);
       const assistantMsg = await prisma.chatMessage.create({
         data: {
           threadId: thread.id,
           role: "ASSISTANT",
           content: staged.summary,
-          actionsJson: JSON.stringify({ toolResults: [staged], staged: true }),
+          actionsJson: JSON.stringify({
+            toolResults: [staged],
+            staged: true,
+            widgets,
+          }),
         },
       });
       return NextResponse.json({
@@ -245,6 +307,7 @@ export async function POST(req: NextRequest) {
         userMessage: userMsg,
         assistantMessage: assistantMsg,
         toolResults: [staged],
+        widgets,
       });
     }
     if (delInsumo?.[1]) {
@@ -252,12 +315,17 @@ export async function POST(req: NextRequest) {
         "inventory_delete",
         JSON.stringify({ name: delInsumo[1].trim() })
       );
+      const widgets = widgetsFromToolResults([staged]);
       const assistantMsg = await prisma.chatMessage.create({
         data: {
           threadId: thread.id,
           role: "ASSISTANT",
           content: staged.summary,
-          actionsJson: JSON.stringify({ toolResults: [staged], staged: true }),
+          actionsJson: JSON.stringify({
+            toolResults: [staged],
+            staged: true,
+            widgets,
+          }),
         },
       });
       return NextResponse.json({
@@ -265,12 +333,13 @@ export async function POST(req: NextRequest) {
         userMessage: userMsg,
         assistantMessage: assistantMsg,
         toolResults: [staged],
+        widgets,
       });
     }
   }
 
   // —— Confirmation gate (destructive actions) ——
-  // Accept: CONFIRMAR <código> | bare CONFIRMAR/confirmo/sí | ASSISTANT_CONFIRM_SECRET
+  // Accept: CONFIRMAR <código> | bare CONFIRMAR/confirmo | ASSISTANT_CONFIRM_SECRET
   const confirmCode = text ? parseConfirmCode(text) : null;
   const bareConfirm = text ? isBareConfirm(text) : false;
   if (confirmCode || bareConfirm || (text && matchesConfirmSecret(text))) {
@@ -406,6 +475,7 @@ Inventario: ${insumos.map((i) => `${i.name}=${i.quantityOnHand}${i.baseUnit}`).j
     }
   }
 
+  const widgets = widgetsFromToolResults(toolResults as unknown[]);
   const assistantMsg = await prisma.chatMessage.create({
     data: {
       threadId: thread.id,
@@ -414,6 +484,7 @@ Inventario: ${insumos.map((i) => `${i.name}=${i.quantityOnHand}${i.baseUnit}`).j
       actionsJson: JSON.stringify({
         stub,
         toolResults,
+        widgets,
         ...(legacyInventory ? { inventory: legacyInventory } : {}),
       }),
     },
@@ -429,5 +500,6 @@ Inventario: ${insumos.map((i) => `${i.name}=${i.quantityOnHand}${i.baseUnit}`).j
     userMessage: userMsg,
     assistantMessage: assistantMsg,
     toolResults,
+    widgets,
   });
 }

@@ -82,6 +82,20 @@ export function peekLatestPending(): PendingAction | null {
   return actions[0] || null;
 }
 
+export function listPendingActions(): PendingAction[] {
+  return load().sort((a, b) => b.createdAt - a.createdAt);
+}
+
+export function cancelPendingByCode(code: string): PendingAction | null {
+  const normalized = code.trim().toUpperCase();
+  const actions = load();
+  const idx = actions.findIndex((a) => a.code === normalized);
+  if (idx < 0) return null;
+  const [action] = actions.splice(idx, 1);
+  save(actions);
+  return action;
+}
+
 export function peekPendingByCode(code: string): PendingAction | null {
   const normalized = code.trim().toUpperCase();
   return (

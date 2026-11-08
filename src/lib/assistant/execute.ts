@@ -13,6 +13,8 @@ export type ToolResult = {
   confirmCode?: string;
   summary: string;
   data?: unknown;
+  /** Tool name — used by Hablar widgets */
+  tool?: string;
 };
 
 function guessCategory(name: string, unit: string): InsumoCategoria {
@@ -469,38 +471,54 @@ export async function executeAssistantTool(
     return { ok: false, summary: "Argumentos JSON inválidos." };
   }
 
+  let result: ToolResult;
   switch (name) {
     case "inventory_add_stock":
-      return inventoryAddStock(args as never);
+      result = await inventoryAddStock(args as never);
+      break;
     case "inventory_set_stock":
-      return inventorySetStock(args as never);
+      result = await inventorySetStock(args as never);
+      break;
     case "inventory_list_low":
-      return inventoryListLow();
+      result = await inventoryListLow();
+      break;
     case "inventory_delete":
-      return inventoryDelete(args as never);
+      result = await inventoryDelete(args as never);
+      break;
     case "inventory_clear_all":
-      return inventoryClearAll(args as never);
+      result = await inventoryClearAll(args as never);
+      break;
     case "pendiente_create":
-      return pendienteCreate(args as never);
+      result = await pendienteCreate(args as never);
+      break;
     case "pendiente_update_status":
-      return pendienteUpdateStatus(args as never);
+      result = await pendienteUpdateStatus(args as never);
+      break;
     case "pendiente_list":
-      return pendienteList(args as never);
+      result = await pendienteList(args as never);
+      break;
     case "pendiente_delete":
-      return pendienteDelete(args as never);
+      result = await pendienteDelete(args as never);
+      break;
     case "receta_list":
-      return recetaList();
+      result = await recetaList();
+      break;
     case "receta_create":
-      return recetaCreate(args as never);
+      result = await recetaCreate(args as never);
+      break;
     case "menu_list":
-      return menuList();
+      result = await menuList();
+      break;
     case "produccion_propose":
-      return produccionPropose(args as never);
+      result = await produccionPropose(args as never);
+      break;
     case "produccion_confirm":
-      return produccionConfirm(args as never);
+      result = await produccionConfirm(args as never);
+      break;
     default:
-      return { ok: false, summary: `Herramienta desconocida: ${name}` };
+      result = { ok: false, summary: `Herramienta desconocida: ${name}` };
   }
+  return { ...result, tool: name };
 }
 
 /** Execute a previously staged destructive action after CONFIRMAR */
