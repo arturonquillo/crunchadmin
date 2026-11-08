@@ -12,7 +12,6 @@ import {
   formatQty,
   packFillPercent,
   stockStatus,
-  STOCK_STATUS_LABEL,
   type StockStatus,
 } from "@/lib/inventory";
 
@@ -53,6 +52,7 @@ function statusClass(s: StockStatus): string {
 export default function InventarioPage() {
   const t = useTranslations("Inventario");
   const tLabels = useTranslations("Labels");
+  const tCommon = useTranslations("Common");
   const [items, setItems] = useState<Insumo[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [showForm, setShowForm] = useState(false);
@@ -221,15 +221,15 @@ export default function InventarioPage() {
 
   async function receivePack(item: Insumo) {
     if (!item.packSize) {
-      alert("Definí primero el tamaño de compra (pack) de este insumo.");
+      alert(t("definePackFirst"));
       return;
     }
     const next = Math.round((item.quantityOnHand + item.packSize) * 1000) / 1000;
-    await adjust(item.id, next, `Recepción de pack ${item.packSize} ${item.baseUnit}`);
+    await adjust(item.id, next, t("receiveNote", { pack: item.packSize, unit: item.baseUnit }));
   }
 
   async function remove(id: string) {
-    if (!confirm("¿Eliminar este insumo del catálogo?")) return;
+    if (!confirm(t("confirmDelete"))) return;
     await fetch(`/api/inventario/${id}`, { method: "DELETE" });
     await load();
   }
@@ -245,47 +245,49 @@ export default function InventarioPage() {
         </div>
         <div className="inv-hero-actions">
           <Link href="/recetas" className="btn ghost">
-            Fichas técnicas →
+            {t("fichasLink")}
           </Link>
           <button type="button" className="btn" onClick={() => setShowForm(true)}>
-            + Nuevo
+            {t("new")}
           </button>
         </div>
       </header>
 
       <p className="inv-fichas-hint">
-        Las <strong>fichas técnicas</strong> están en{" "}
-        <Link href="/recetas">Menú → Fichas técnicas</Link>. Cada ficha tiene escalado; desde un
-        insumo podés abrir las fichas que lo usan.
+        {t("fichasHintBefore")}
+        <strong>{t("fichasHintStrong")}</strong>
+        {t("fichasHintMid")}
+        <Link href="/recetas">{t("fichasHintLink")}</Link>
+        {t("fichasHintAfter")}
       </p>
 
-      <section className="inv-summary" aria-label="Resumen de stock">
+      <section className="inv-summary" aria-label={t("summaryAria")}>
         <div className="inv-stat">
           <strong>{summary.total}</strong>
-          <span>Insumos</span>
+          <span>{t("statItems")}</span>
         </div>
         <div className="inv-stat">
           <strong>{summary.categories}</strong>
-          <span>Categorías</span>
+          <span>{t("statCategories")}</span>
         </div>
         <div className={`inv-stat ${summary.reorder ? "warn" : ""}`}>
           <strong>{summary.reorder}</strong>
-          <span>A reponer</span>
+          <span>{t("statReorder")}</span>
         </div>
         <div className={`inv-stat ${summary.critical ? "crit" : ""}`}>
           <strong>{summary.critical}</strong>
-          <span>Críticos</span>
+          <span>{t("statCritical")}</span>
         </div>
       </section>
 
       <section className="inv-toolbar panel">
         <div className="field" style={{ margin: 0, flex: 1 }}>
-          <label htmlFor="inv-search">Buscar</label>
+          <label htmlFor="inv-search">{t("search")}</label>
           <input
             id="inv-search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Nombre del insumo…"
+            placeholder={t("searchPlaceholder")}
           />
         </div>
         <label className="inv-check">
@@ -294,17 +296,17 @@ export default function InventarioPage() {
             checked={onlyAttention}
             onChange={(e) => setOnlyAttention(e.target.checked)}
           />
-          Solo atención
+          {t("onlyAttention")}
         </label>
       </section>
 
-      <div className="inv-cats" role="tablist" aria-label="Categorías">
+      <div className="inv-cats" role="tablist" aria-label={t("categoriesAria")}>
         <button
           type="button"
           className={!catFilter ? "active" : ""}
           onClick={() => setCatFilter("")}
         >
-          Todas
+          {tCommon("all")}
         </button>
         {INSUMO_CATEGORIAS.map((c) => {
           const attn = attentionByCat.get(c) || 0;
@@ -324,25 +326,25 @@ export default function InventarioPage() {
 
       <FormSheet
         open={showForm}
-        title="Nuevo insumo"
-        kicker="Inventario"
+        title={t("newTitle")}
+        kicker={t("kicker")}
         onClose={() => setShowForm(false)}
       >
         <form onSubmit={onCreate}>
           <div className="form-grid">
             <div className="field" style={{ gridColumn: "1 / -1" }}>
-              <label htmlFor="inv-name">Nombre</label>
+              <label htmlFor="inv-name">{t("fieldName")}</label>
               <input
                 id="inv-name"
                 required
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Ej. Extracto de vainilla"
+                placeholder={t("namePlaceholder")}
                 autoFocus
               />
             </div>
             <div className="field">
-              <label htmlFor="inv-cat">Categoría</label>
+              <label htmlFor="inv-cat">{t("fieldCategory")}</label>
               <select
                 id="inv-cat"
                 value={form.category}
@@ -358,7 +360,7 @@ export default function InventarioPage() {
               </select>
             </div>
             <div className="field">
-              <label htmlFor="inv-unit">Unidad</label>
+              <label htmlFor="inv-unit">{t("fieldUnit")}</label>
               <select
                 id="inv-unit"
                 value={form.baseUnit}
@@ -372,7 +374,7 @@ export default function InventarioPage() {
               </select>
             </div>
             <div className="field">
-              <label htmlFor="inv-qty">Cantidad actual</label>
+              <label htmlFor="inv-qty">{t("fieldQty")}</label>
               <input
                 id="inv-qty"
                 type="number"
@@ -383,7 +385,7 @@ export default function InventarioPage() {
               />
             </div>
             <div className="field">
-              <label htmlFor="inv-pack">Tamaño de compra (pack = 100%)</label>
+              <label htmlFor="inv-pack">{t("fieldPack")}</label>
               <input
                 id="inv-pack"
                 type="number"
@@ -391,11 +393,11 @@ export default function InventarioPage() {
                 min="0"
                 value={form.packSize}
                 onChange={(e) => setForm({ ...form, packSize: e.target.value })}
-                placeholder="Ej. 25"
+                placeholder={t("packPlaceholder")}
               />
             </div>
             <div className="field">
-              <label htmlFor="inv-min">Punto de reorden (mín.)</label>
+              <label htmlFor="inv-min">{t("fieldMin")}</label>
               <input
                 id="inv-min"
                 type="number"
@@ -403,32 +405,32 @@ export default function InventarioPage() {
                 min="0"
                 value={form.minQty}
                 onChange={(e) => setForm({ ...form, minQty: e.target.value })}
-                placeholder="Opcional"
+                placeholder={t("optionalPlaceholder")}
               />
             </div>
             <div className="field" style={{ gridColumn: "1 / -1" }}>
-              <label htmlFor="inv-hint">Hint de compra</label>
+              <label htmlFor="inv-hint">{t("fieldReorderHint")}</label>
               <input
                 id="inv-hint"
                 value={form.reorderHint}
                 onChange={(e) => setForm({ ...form, reorderHint: e.target.value })}
-                placeholder="Ej. Pack 25 kg · pedir bajo 20%"
+                placeholder={t("reorderHintPlaceholder")}
               />
             </div>
             <div className="field" style={{ gridColumn: "1 / -1" }}>
-              <label htmlFor="inv-fifo">Nota FIFO / rotación</label>
+              <label htmlFor="inv-fifo">{t("fieldFifo")}</label>
               <input
                 id="inv-fifo"
                 value={form.fifoNote}
                 onChange={(e) => setForm({ ...form, fifoNote: e.target.value })}
-                placeholder="Ej. Sacos nuevos detrás"
+                placeholder={t("fifoPlaceholder")}
               />
             </div>
           </div>
           {error && <p className="error">{error}</p>}
           <div className="form-actions">
             <button className="btn" type="submit">
-              Agregar al catálogo
+              {t("addToCatalog")}
             </button>
           </div>
         </form>
@@ -436,9 +438,9 @@ export default function InventarioPage() {
 
       <section className="inv-stock" style={{ marginTop: "1rem" }}>
         {loading ? (
-          <p className="empty">Cargando inventario…</p>
+          <p className="empty">{t("loading")}</p>
         ) : grouped.length === 0 ? (
-          <p className="empty">Ningún insumo coincide con el filtro.</p>
+          <p className="empty">{t("emptyFilter")}</p>
         ) : (
           grouped.map((group) => {
             const catOpen = isCatOpen(group.category);
@@ -487,7 +489,7 @@ export default function InventarioPage() {
                         <div className="inv-card-top">
                           <strong>{item.name}</strong>
                           <span className={`inv-badge ${statusClass(st)}`}>
-                            {STOCK_STATUS_LABEL[st]}
+                            {tLabels(`stockStatus.${st}`)}
                           </span>
                         </div>
                         <div className="inv-card-qty">
@@ -496,7 +498,7 @@ export default function InventarioPage() {
                           </span>
                           {item.packSize != null && (
                             <span className="inv-qty-pack">
-                              / pack {formatQty(item.packSize, item.baseUnit)}
+                              {t("ofPack", { pack: formatQty(item.packSize, item.baseUnit) })}
                               {fill != null && (
                                 <span className="inv-pct"> · {fill}%</span>
                               )}
@@ -511,7 +513,7 @@ export default function InventarioPage() {
                               aria-valuenow={fill ?? 0}
                               aria-valuemin={0}
                               aria-valuemax={100}
-                              aria-label={`Nivel de stock ${fill}% del pack`}
+                              aria-label={t("stockLevelAria", { fill: fill ?? 0 })}
                             >
                               <div
                                 className={`inv-bar-fill ${statusClass(st)}`}
@@ -519,17 +521,17 @@ export default function InventarioPage() {
                               />
                             </div>
                             <p className="inv-bar-caption">
-                              Pack de compra {formatQty(item.packSize, item.baseUnit)} = 100%
+                              {t("packCaption", { pack: formatQty(item.packSize, item.baseUnit) })}
                             </p>
                           </>
                         ) : (
-                          <p className="inv-no-pack">Sin tamaño de compra — definí el pack</p>
+                          <p className="inv-no-pack">{t("noPack")}</p>
                         )}
                         {(st === "reorder" || st === "critical") && (
                           <p className="inv-reorder-msg">
                             {st === "critical"
-                              ? "Urgente: bajo el punto de reorden o ≤15% del pack."
-                              : "Conviene reponer (≤35% del pack)."}
+                              ? t("urgentMsg")
+                              : t("reorderMsg")}
                             {item.reorderHint ? ` ${item.reorderHint}` : ""}
                           </p>
                         )}
@@ -539,26 +541,26 @@ export default function InventarioPage() {
                         <div className="inv-card-detail">
                           {item.minQty != null && (
                             <p>
-                              <span className="muted">Punto de reorden:</span>{" "}
+                              <span className="muted">{t("reorderPoint")}</span>{" "}
                               {formatQty(item.minQty, item.baseUnit)}
                             </p>
                           )}
                           {item.fifoNote && (
                             <p>
-                              <span className="muted">FIFO:</span> {item.fifoNote}
+                              <span className="muted">{t("fifo")}</span> {item.fifoNote}
                             </p>
                           )}
                           {item.purchaseNotes && (
                             <p>
-                              <span className="muted">Compra:</span> {item.purchaseNotes}
+                              <span className="muted">{t("purchase")}</span> {item.purchaseNotes}
                             </p>
                           )}
                           <div className="inv-fichas">
-                            <span className="muted">Fichas técnicas:</span>{" "}
+                            <span className="muted">{t("fichasLabel")}</span>{" "}
                             {item.fichas.length === 0 ? (
                               <span>
-                                ninguna ligada ·{" "}
-                                <Link href="/recetas">ver fichas</Link>
+                                {t("noFichas")}
+                                <Link href="/recetas">{t("seeFichas")}</Link>
                               </span>
                             ) : (
                               item.fichas.map((f, i) => (
@@ -575,30 +577,30 @@ export default function InventarioPage() {
                               className="btn ghost"
                               onClick={() => {
                                 const v = prompt(
-                                  `Cantidad actual de ${item.name} (${item.baseUnit})`,
+                                  t("qtyPrompt", { name: item.name, unit: item.baseUnit }),
                                   String(item.quantityOnHand)
                                 );
                                 if (v == null) return;
                                 const n = Number(v.replace(",", "."));
-                                if (!Number.isFinite(n)) return alert("Número inválido");
-                                adjust(item.id, n, "Ajuste manual / conteo");
+                                if (!Number.isFinite(n)) return alert(tCommon("invalidNumber"));
+                                adjust(item.id, n, t("adjustNote"));
                               }}
                             >
-                              Ajustar conteo
+                              {t("adjustCount")}
                             </button>
                             <button
                               type="button"
                               className="btn ghost"
                               onClick={() => receivePack(item)}
                             >
-                              +1 pack
+                              {t("addPack")}
                             </button>
                             <button
                               type="button"
                               className="btn ghost danger"
                               onClick={() => remove(item.id)}
                             >
-                              Eliminar
+                              {t("remove")}
                             </button>
                           </div>
                         </div>

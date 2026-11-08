@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 
 type Line = {
   id: string;
@@ -51,6 +52,9 @@ type ScaleResult = {
 export default function RecetaDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
+  const t = useTranslations("RecetaDetail");
+  const tc = useTranslations("Common");
+  const locale = useLocale();
   const [receta, setReceta] = useState<Receta | null>(null);
   const [versionId, setVersionId] = useState<string>("");
   const [baseKind, setBaseKind] = useState<"yield" | "line">("yield");
@@ -64,7 +68,7 @@ export default function RecetaDetailPage() {
   const load = useCallback(async () => {
     const res = await fetch(`/api/recetas/${id}`);
     if (!res.ok) {
-      setError("Receta no encontrada");
+      setError(t("notFound"));
       return;
     }
     const data: Receta = await res.json();
@@ -80,7 +84,7 @@ export default function RecetaDetailPage() {
       if (firstScalable) setBaseLineId(firstScalable.id);
     }
     if (data.yieldUnit) setTargetUnit(data.yieldUnit);
-  }, [id]);
+  }, [id, t]);
 
   useEffect(() => {
     load().catch(console.error);
@@ -108,7 +112,7 @@ export default function RecetaDetailPage() {
     });
     const data = await res.json();
     if (!res.ok) {
-      setError(data.error || "Error de escalado");
+      setError(data.error || t("scaleError"));
       return;
     }
     setResult(data);
@@ -126,10 +130,10 @@ export default function RecetaDetailPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        label: `Escalado ×${result.factor}`,
+        label: t("scaledLabel", { factor: result.factor }),
         changelog:
           changelog ||
-          `Batch escalado desde ${result.baseName} (factor ${result.factor})`,
+          t("scaledChangelog", { base: result.baseName, factor: result.factor }),
         lines,
         yieldQty: result.scaledYield?.quantity,
         yieldUnit: result.scaledYield?.unit,
@@ -139,7 +143,7 @@ export default function RecetaDetailPage() {
     });
     if (!res.ok) {
       const d = await res.json();
-      setError(d.error || "No se pudo guardar versión");
+      setError(d.error || t("saveError"));
       return;
     }
     setChangelog("");
@@ -147,27 +151,27 @@ export default function RecetaDetailPage() {
   }
 
   if (!receta) {
-    return <p className="empty">{error || "Cargando…"}</p>;
+    return <p className="empty">{error || tc("loading")}</p>;
   }
 
   return (
     <div className="shell">
       <p style={{ marginBottom: "0.5rem" }}>
         <Link href="/recetas" style={{ color: "var(--accent-deep)" }}>
-          ← Recetas
+          {t("back")}
         </Link>
       </p>
       <h1 className="section-title">{receta.name}</h1>
       <p className="section-sub">
-        {receta.notes || "Ficha técnica"}
+        {receta.notes || t("techSheet")}
         {receta.yieldQty != null &&
-          ` · Rendimiento: ${receta.yieldQty} ${receta.yieldUnit} ${receta.yieldLabel ? `(${receta.yieldLabel})` : ""}`}
+          ` · ${t("yield")}: ${receta.yieldQty} ${receta.yieldUnit} ${receta.yieldLabel ? `(${receta.yieldLabel})` : ""}`}
       </p>
 
       <section className="panel">
-        <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Versiones</h2>
+        <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>{t("versions")}</h2>
         <div className="field" style={{ maxWidth: 360, marginBottom: "1rem" }}>
-          <label htmlFor="ver">Versión activa de consulta</label>
+          <label htmlFor="ver">{t("activeVersion")}</label>
           <select
             id="ver"
             value={versionId}
@@ -177,7 +181,7 @@ export default function RecetaDetailPage() {
               <option key={v.id} value={v.id}>
                 v{v.number}
                 {v.label ? ` — ${v.label}` : ""}
-                {v.id === receta.currentVersionId ? " (publicada)" : ""}
+                {v.id === receta.currentVersionId ? ` ${t("published")}` : ""}
               </option>
             ))}
           </select>
@@ -187,9 +191,9 @@ export default function RecetaDetailPage() {
             <table className="data">
               <thead>
                 <tr>
-                  <th>Ingrediente</th>
-                  <th>Cantidad</th>
-                  <th>Notas</th>
+                  <th>{t("colIngredient")}</th>
+                  <th>{t("colQty")}</th>
+                  <th>{t("colNotes")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -198,14 +202,14 @@ export default function RecetaDetailPage() {
                     <td>{l.name}</td>
                     <td>
                       {l.isToTaste
-                        ? "A gusto"
-                        : `${l.quantity ?? "—"} ${l.unit ?? ""}`}
+                        ? t("toTaste")
+                        : `${l.quantity ?? tc("dash")} ${l.unit ?? ""}`}
                     </td>
                     <td>
                       {l.canBeScaleBase ? (
-                        <span className="badge">Puede ser base</span>
+                        <span className="badge">{t("canBeBase")}</span>
                       ) : (
-                        "—"
+                        tc("dash")
                       )}
                     </td>
                   </tr>
@@ -218,16 +222,15 @@ export default function RecetaDetailPage() {
 
       <section className="panel">
         <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>
-          Calculadora de escalado
+          {t("scaleTitle")}
         </h2>
         <p className="section-sub" style={{ marginBottom: "1rem" }}>
-          Elige cualquier ingrediente (o el rendimiento) como base e indica la
-          cantidad objetivo. Ejemplo demo: 1 kg mayonesa → 1,8 kg.
+          {t("scaleHelp")}
         </p>
         <form onSubmit={onScale}>
           <div className="form-grid">
             <div className="field">
-              <label htmlFor="bk">Base</label>
+              <label htmlFor="bk">{t("base")}</label>
               <select
                 id="bk"
                 value={baseKind}
@@ -236,15 +239,15 @@ export default function RecetaDetailPage() {
                 }
               >
                 <option value="yield">
-                  Rendimiento
+                  {t("baseYield")}
                   {receta.yieldLabel ? ` (${receta.yieldLabel})` : ""}
                 </option>
-                <option value="line">Ingrediente de la ficha</option>
+                <option value="line">{t("baseLine")}</option>
               </select>
             </div>
             {baseKind === "line" && version && (
               <div className="field">
-                <label htmlFor="bl">Ingrediente base</label>
+                <label htmlFor="bl">{t("baseIngredient")}</label>
                 <select
                   id="bl"
                   value={baseLineId}
@@ -261,7 +264,7 @@ export default function RecetaDetailPage() {
               </div>
             )}
             <div className="field">
-              <label htmlFor="tq">Cantidad objetivo</label>
+              <label htmlFor="tq">{t("targetQty")}</label>
               <input
                 id="tq"
                 type="number"
@@ -272,7 +275,7 @@ export default function RecetaDetailPage() {
               />
             </div>
             <div className="field">
-              <label htmlFor="tu">Unidad</label>
+              <label htmlFor="tu">{t("unit")}</label>
               <input
                 id="tu"
                 value={targetUnit}
@@ -282,7 +285,7 @@ export default function RecetaDetailPage() {
           </div>
           <div className="form-actions">
             <button className="btn" type="submit">
-              Calcular
+              {t("calculate")}
             </button>
           </div>
         </form>
@@ -294,17 +297,17 @@ export default function RecetaDetailPage() {
         {result && (
           <div className="scale-result">
             <p style={{ marginTop: 0 }}>
-              Factor <strong>×{result.factor}</strong> · base: {result.baseName}
+              {t("factor")} <strong>×{result.factor}</strong> · {t("baseLabel")}: {result.baseName}
               {result.scaledYield &&
-                ` · nuevo rendimiento: ${result.scaledYield.quantity} ${result.scaledYield.unit}`}
+                ` · ${t("newYield")}: ${result.scaledYield.quantity} ${result.scaledYield.unit}`}
             </p>
             <div className="table-wrap">
               <table className="data">
                 <thead>
                   <tr>
-                    <th>Ingrediente</th>
-                    <th>Original</th>
-                    <th>Escalado</th>
+                    <th>{t("colIngredient")}</th>
+                    <th>{t("colOriginal")}</th>
+                    <th>{t("colScaled")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -314,12 +317,12 @@ export default function RecetaDetailPage() {
                       <td>
                         {l.originalQuantity != null
                           ? `${l.originalQuantity} ${l.unit ?? ""}`
-                          : "—"}
+                          : tc("dash")}
                       </td>
                       <td>
                         {l.scaled
                           ? `${l.scaledQuantity} ${l.unit ?? ""}`
-                          : l.reason || "—"}
+                          : l.reason || tc("dash")}
                       </td>
                     </tr>
                   ))}
@@ -327,12 +330,12 @@ export default function RecetaDetailPage() {
               </table>
             </div>
             <div className="field" style={{ marginTop: "0.75rem" }}>
-              <label htmlFor="cl">Changelog (opcional)</label>
+              <label htmlFor="cl">{t("changelog")}</label>
               <input
                 id="cl"
                 value={changelog}
                 onChange={(e) => setChangelog(e.target.value)}
-                placeholder="Guardar como nueva versión de producción"
+                placeholder={t("changelogPlaceholder")}
               />
             </div>
             <div className="form-actions">
@@ -341,7 +344,7 @@ export default function RecetaDetailPage() {
                 className="btn secondary"
                 onClick={saveScaledAsVersion}
               >
-                Guardar como nueva versión
+                {t("saveVersion")}
               </button>
             </div>
           </div>
@@ -349,7 +352,7 @@ export default function RecetaDetailPage() {
       </section>
 
       <section className="panel">
-        <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Historial</h2>
+        <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>{t("history")}</h2>
         <div className="version-list">
           {receta.versions.map((v) => (
             <div key={v.id} className="version-item">
@@ -358,7 +361,7 @@ export default function RecetaDetailPage() {
                 {v.label ? ` — ${v.label}` : ""}
               </strong>
               <div style={{ color: "var(--muted)", fontSize: "0.85rem" }}>
-                {new Date(v.createdAt).toLocaleString("es")}
+                {new Date(v.createdAt).toLocaleString(locale)}
                 {v.changelog ? ` · ${v.changelog}` : ""}
               </div>
             </div>

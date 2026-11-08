@@ -141,6 +141,7 @@ function ConfirmActionWidget({
   onConfirm: (code: string) => void;
   onCancel: (code: string) => void;
 }) {
+  const t = useTranslations("Chat");
   return (
     <div className={`chat-widget confirm ${active ? "active" : "spent"}`}>
       <p className="chat-widget-title">{widget.title}</p>
@@ -165,7 +166,7 @@ function ConfirmActionWidget({
           </button>
         </div>
       ) : (
-        <p className="chat-widget-spent">Acción ya resuelta o vencida.</p>
+        <p className="chat-widget-spent">{t("actionSpent")}</p>
       )}
     </div>
   );
@@ -301,14 +302,14 @@ export function ChatModule({
     setPendingCodes(new Set());
     onThreadChangeRef.current?.(data.id);
     return data.id as string;
-  }, []);
+  }, [t]);
 
   const loadThreadList = useCallback(async () => {
     setThreadsLoading(true);
     try {
       const res = await fetch("/api/chat/threads");
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "No se pudo listar chats");
+      if (!res.ok) throw new Error(data.error || t("listError"));
       setThreads(data.threads || []);
     } catch (err) {
       setStatus(String(err));
@@ -406,7 +407,7 @@ export function ChatModule({
   const transcribeBlob = useCallback(
     async (blob: Blob, mimeType: string) => {
       setTranscribing(true);
-      setStatus("Transcribiendo con IA…");
+      setStatus(t("transcribingAi"));
       try {
         const ext = extensionForMime(mimeType || blob.type);
         const form = new FormData();
@@ -419,18 +420,18 @@ export function ChatModule({
           return;
         }
         if (!data.text) {
-          setStatus("No escuché texto claro. Probá de nuevo cerca del mic.");
+          setStatus(t("noClearAudio"));
           return;
         }
         appendTranscript(String(data.text));
-        setStatus("Texto listo — podés editar o Enviar.");
+        setStatus(t("readyEditSend"));
       } catch (err) {
         setStatus(String(err));
       } finally {
         setTranscribing(false);
       }
     },
-    [appendTranscript]
+    [appendTranscript, t]
   );
 
   const applyLiveText = useCallback((spoken: string) => {
@@ -462,7 +463,7 @@ export function ChatModule({
       if (ev.data && ev.data.size > 0) chunksRef.current.push(ev.data);
     };
     recorder.onerror = () => {
-      setStatus("Error al grabar audio.");
+      setStatus(t("recordError"));
       setRecording(false);
       releaseStream();
     };
@@ -474,7 +475,7 @@ export function ChatModule({
       releaseStream();
       mediaRecorderRef.current = null;
       if (blob.size < 400) {
-        setStatus("Grabación muy corta. Hablá un segundo más y usá Stop.");
+        setStatus(t("tooShort"));
         return;
       }
       void transcribeBlob(blob, type);
@@ -483,8 +484,8 @@ export function ChatModule({
     mediaRecorderRef.current = recorder;
     recorder.start(250);
     setRecording(true);
-    setStatus("Grabando (Whisper al final)…");
-  }, [recorderSupport, releaseStream, transcribeBlob]);
+    setStatus(t("recordingWhisper"));
+  }, [recorderSupport, releaseStream, transcribeBlob, t]);
 
   const stopRecording = useCallback(() => {
     const live = liveSessionRef.current;
@@ -492,12 +493,12 @@ export function ChatModule({
       liveSessionRef.current = null;
       setRecording(false);
       setTranscribing(true);
-      setStatus("Cerrando turno en vivo…");
+      setStatus(t("closingLive"));
       void live
         .stop()
         .then((finalText) => {
           if (finalText) applyLiveText(finalText);
-          setStatus(finalText ? "Texto listo — podés editar o Enviar." : null);
+          setStatus(finalText ? t("readyEditSend") : null);
         })
         .catch((err) => setStatus(String(err)))
         .finally(() => {
@@ -519,12 +520,12 @@ export function ChatModule({
       setRecording(false);
       releaseStream();
     }
-  }, [releaseStream, applyLiveText]);
+  }, [releaseStream, applyLiveText, t]);
 
   const startRecording = useCallback(async () => {
     setStatus(null);
     if (openaiOk === null) {
-      setStatus("Preparando micrófono…");
+      setStatus(t("preparingMic"));
       return;
     }
     if (openaiOk === false) {
@@ -540,7 +541,7 @@ export function ChatModule({
 
     preRecordTextRef.current = text;
     try {
-      setStatus("Conectando transcripción en vivo…");
+      setStatus(t("connectingLive"));
       const session = await startLiveTranscription({
         onPartial: (spoken) => applyLiveText(spoken),
         onFinal: (spoken) => applyLiveText(spoken),
@@ -570,7 +571,7 @@ export function ChatModule({
         setStatus(
           fallbackErr instanceof Error
             ? fallbackErr.message
-            : "No se pudo abrir el micrófono."
+            : t("micOpenError")
         );
         setRecording(false);
       }
@@ -581,6 +582,7 @@ export function ChatModule({
     text,
     applyLiveText,
     startWhisperFallback,
+    t,
   ]);
 
   const toggleMic = useCallback(() => {
@@ -785,7 +787,7 @@ export function ChatModule({
         : null;
 
   return (
-    <div className="hablar-root is-page" aria-label="Chat Crunchadmin">
+    <div className="hablar-root is-page" aria-label={t("rootAria")}>
       <div className="hablar-panel">
         <header className="hablar-head">
           <div className="hablar-head-text">
@@ -931,7 +933,7 @@ export function ChatModule({
           {sending && (
             <div className="hablar-bubble assistant typing">
               <span className="hablar-meta">Crunchadmin</span>
-              <div className="hablar-typing-dots" aria-label="Escribiendo">
+              <div className="hablar-typing-dots" aria-label={t("typing")}>
                 <span />
                 <span />
                 <span />
@@ -950,7 +952,7 @@ export function ChatModule({
         )}
 
         {pendingFiles.length > 0 && (
-          <ul className="hablar-pending-files" aria-label="Archivos a enviar">
+          <ul className="hablar-pending-files" aria-label={t("pendingFilesAria")}>
             {pendingFiles.map((f, i) => (
               <li key={`${f.name}-${f.size}-${i}`}>
                 <span>
@@ -960,7 +962,7 @@ export function ChatModule({
                 <button
                   type="button"
                   className="hablar-file-remove"
-                  aria-label={`Quitar ${f.name}`}
+                  aria-label={t("removeFile", { name: f.name })}
                   onClick={() =>
                     setPendingFiles((prev) => prev.filter((_, idx) => idx !== i))
                   }
@@ -989,10 +991,10 @@ export function ChatModule({
             className={`hablar-mic ${recording ? "listening is-stop" : ""} ${transcribing ? "transcribing" : ""}`}
             aria-label={
               recording
-                ? "Detener grabación"
+                ? t("micStop")
                 : transcribing
-                  ? "Transcribiendo"
-                  : "Grabar y transcribir"
+                  ? t("micTranscribing")
+                  : t("micRecord")
             }
             aria-pressed={recording}
             disabled={!micReady || transcribing}
@@ -1011,7 +1013,7 @@ export function ChatModule({
           <button
             type="button"
             className="hablar-attach"
-            aria-label="Adjuntar foto, PDF o Excel"
+            aria-label={t("attachAria")}
             disabled={sending || micBusy}
             onClick={() => fileRef.current?.click()}
           >
@@ -1051,7 +1053,7 @@ export function ChatModule({
             type="submit"
             className="hablar-send"
             disabled={sending || micBusy || (!text.trim() && pendingFiles.length === 0)}
-            aria-label="Enviar"
+            aria-label={t("send")}
           >
             <IconSend />
           </button>

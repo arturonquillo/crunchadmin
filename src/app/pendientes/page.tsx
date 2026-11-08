@@ -13,7 +13,6 @@ import {
 } from "@/lib/labels";
 import {
   ZONE_IDS,
-  ZONE_LABEL,
   type RestaurantZone,
 } from "@/lib/zones";
 
@@ -227,7 +226,7 @@ export default function PendientesPage() {
           )}
           {showTags && (
             <div className="list-card-badges">
-              <span className="badge">{ZONE_LABEL[item.zone]}</span>
+              <span className="badge">{tLabels(`zone.${item.zone}`)}</span>
               <span className="badge">{tLabels(`categoria.${item.categoria}`)}</span>
             </div>
           )}
@@ -244,7 +243,7 @@ export default function PendientesPage() {
                 >
                   {ZONE_IDS.map((z) => (
                     <option key={z} value={z}>
-                      {ZONE_LABEL[z]}
+                      {tLabels(`zone.${z}`)}
                     </option>
                   ))}
                 </select>
@@ -326,7 +325,7 @@ export default function PendientesPage() {
               className="pendientes-status-filter"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-              aria-label="Filtrar por estado"
+              aria-label={t("filterEstadoAria")}
             >
               <option value="activos">{t("activos")}</option>
               <option value="hecho">{t("hecho")}</option>
@@ -352,7 +351,7 @@ export default function PendientesPage() {
 
         {showTags && (
           <div className="pendientes-tags-panel">
-            <div className="tabs" role="tablist" aria-label="Filtrar categoría">
+            <div className="tabs" role="tablist" aria-label={t("filterCategoriaAria")}>
               <button
                 type="button"
                 className={!filterCat ? "tab active" : "tab"}
@@ -371,7 +370,7 @@ export default function PendientesPage() {
                 </button>
               ))}
             </div>
-            <div className="tabs" role="tablist" aria-label="Filtrar zona">
+            <div className="tabs" role="tablist" aria-label={t("filterZonaAria")}>
               <button
                 type="button"
                 className={!filterZone ? "tab active" : "tab"}
@@ -386,7 +385,7 @@ export default function PendientesPage() {
                   className={filterZone === z ? "tab active" : "tab"}
                   onClick={() => setFilterZone(z)}
                 >
-                  {ZONE_LABEL[z]}
+                  {tLabels(`zone.${z}`)}
                 </button>
               ))}
             </div>
@@ -495,7 +494,7 @@ export default function PendientesPage() {
               >
                 {ZONE_IDS.map((z) => (
                   <option key={z} value={z}>
-                    {ZONE_LABEL[z]}
+                    {tLabels(`zone.${z}`)}
                   </option>
                 ))}
               </select>

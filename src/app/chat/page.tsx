@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { ChatModule } from "@/components/ChatModule";
 
 function ChatPageInner() {
@@ -36,17 +37,20 @@ function ChatPageInner() {
   );
 }
 
+function ChatFallback() {
+  const t = useTranslations("Chat");
+  return (
+    <div className="hablar-root is-page">
+      <div className="hablar-panel">
+        <p className="hablar-empty">{t("loadingChat")}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function ChatPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="hablar-root is-page">
-          <div className="hablar-panel">
-            <p className="hablar-empty">Cargando chat…</p>
-          </div>
-        </div>
-      }
-    >
+    <Suspense fallback={<ChatFallback />}>
       <ChatPageInner />
     </Suspense>
   );
