@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: NextRequest, ctx: Ctx) {
+  const prisma = await getPrisma();
+
   const { id } = await ctx.params;
   const body = await req.json();
   const existing = await prisma.insumo.findUnique({ where: { id } });
@@ -82,6 +84,8 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
 }
 
 export async function DELETE(_req: NextRequest, ctx: Ctx) {
+  const prisma = await getPrisma();
+
   const { id } = await ctx.params;
   await prisma.inventoryMovement.deleteMany({ where: { insumoId: id } });
   await prisma.insumo.delete({ where: { id } });

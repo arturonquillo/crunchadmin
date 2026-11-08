@@ -5,6 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { LocaleSwitcher } from "@/components/LocaleSwitcher";
+import { DbModeToggle } from "@/components/DbModeToggle";
+import type { DbMode } from "@/lib/db-mode";
 
 function IconMenu({ open }: { open?: boolean }) {
   return (
@@ -28,33 +30,6 @@ function IconMenu({ open }: { open?: boolean }) {
   );
 }
 
-function IconHome() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function IconBox() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 3 20 7.5v9L12 21l-8-4.5v-9L12 3Z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-      <path d="M12 12 20 7.5M12 12v9M12 12 4 7.5" stroke="currentColor" strokeWidth="1.8" />
-    </svg>
-  );
-}
-
 function IconMic() {
   return (
     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -69,7 +44,17 @@ function IconMic() {
   );
 }
 
-export function AppChrome({ children }: { children: React.ReactNode }) {
+export function AppChrome({
+  children,
+  dbMode,
+  desarrolloFile,
+  produccionFile,
+}: {
+  children: React.ReactNode;
+  dbMode: DbMode;
+  desarrolloFile: string;
+  produccionFile: string;
+}) {
   const t = useTranslations("Nav");
   const pathname = usePathname();
   const router = useRouter();
@@ -78,11 +63,13 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const drawerLinks = [
-    { href: "/pendientes", label: t("pendientes"), hint: t("pendientesHint") },
-    { href: "/recetas", label: t("fichas"), hint: t("fichasHint") },
-    { href: "/produccion", label: t("produccion"), hint: t("produccionHint") },
-    { href: "/menu", label: t("menuVentas"), hint: t("menuHint") },
+    { href: "/", label: t("home"), hint: t("homeHint") },
     { href: "/chat", label: t("chat"), hint: t("chatHint") },
+    { href: "/pendientes", label: t("pendientes"), hint: t("pendientesHint") },
+    { href: "/inventario", label: t("inventario"), hint: t("inventarioHint") },
+    { href: "/produccion", label: t("produccion"), hint: t("produccionHint") },
+    { href: "/recetas", label: t("fichas"), hint: t("fichasHint") },
+    { href: "/menu", label: t("menuVentas"), hint: t("menuHint") },
     { href: "/ajustes", label: t("ajustes"), hint: t("ajustesHint") },
   ];
 
@@ -96,13 +83,23 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
   }, [drawerOpen]);
 
   function openHablar() {
-    // Always a fresh conversation ready to speak.
+    setDrawerOpen(false);
     router.push(`/chat?new=1&speak=1&t=${Date.now()}`);
   }
 
   return (
     <div className={`app-chrome ${isHome ? "is-home" : ""} ${isChat ? "is-chat" : ""}`}>
       <header className="top-brand">
+        <button
+          type="button"
+          className={`menu-trigger ${drawerOpen ? "active" : ""}`}
+          onClick={() => setDrawerOpen((v) => !v)}
+          aria-expanded={drawerOpen}
+          aria-controls="menu-drawer"
+          aria-label={t("menuDrawer")}
+        >
+          <IconMenu open={drawerOpen} />
+        </button>
         <Link href="/" className="brand">
           <span className="brand-mark" aria-hidden />
           <span className="brand-name">Crunchadmin</span>
@@ -112,43 +109,19 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
 
       <div className="app-main">{children}</div>
 
-      <nav className="bottom-nav" aria-label={t("aria")}>
+      {!isChat && (
         <button
           type="button"
-          className={`bn-item ${drawerOpen ? "active" : ""}`}
-          onClick={() => setDrawerOpen((v) => !v)}
-          aria-expanded={drawerOpen}
-          aria-controls="menu-drawer"
-        >
-          <IconMenu open={drawerOpen} />
-          <span>{t("menu")}</span>
-        </button>
-
-        <Link href="/" className={`bn-item ${isHome ? "active" : ""}`}>
-          <IconHome />
-          <span>{t("home")}</span>
-        </Link>
-
-        <button
-          type="button"
-          className={`bn-speak ${isChat ? "active" : ""}`}
+          className="hablar-fab"
           onClick={openHablar}
           aria-label={t("hablarAria")}
         >
-          <span className="bn-speak-inner">
+          <span className="hablar-fab-inner">
             <IconMic />
           </span>
-          <span className="bn-speak-label">{t("hablar")}</span>
+          <span className="hablar-fab-label">{t("hablar")}</span>
         </button>
-
-        <Link
-          href="/inventario"
-          className={`bn-item ${pathname.startsWith("/inventario") ? "active" : ""}`}
-        >
-          <IconBox />
-          <span>{t("inventario")}</span>
-        </Link>
-      </nav>
+      )}
 
       <div
         className={`drawer-backdrop ${drawerOpen ? "open" : ""}`}
@@ -169,7 +142,10 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
         </div>
         <ul className="menu-drawer-list">
           {drawerLinks.map((l) => {
-            const active = pathname === l.href || pathname.startsWith(`${l.href}/`);
+            const active =
+              l.href === "/"
+                ? pathname === "/"
+                : pathname === l.href || pathname.startsWith(`${l.href}/`);
             return (
               <li key={l.href}>
                 <Link
@@ -184,6 +160,13 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
             );
           })}
         </ul>
+        <div className="menu-drawer-foot">
+          <DbModeToggle
+            initialMode={dbMode}
+            desarrolloFile={desarrolloFile}
+            produccionFile={produccionFile}
+          />
+        </div>
       </aside>
     </div>
   );

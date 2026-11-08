@@ -3,6 +3,8 @@ import { Fraunces, Manrope } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { AppChrome } from "@/components/AppChrome";
+import { dbPathHint } from "@/lib/db-mode";
+import { getDbMode } from "@/lib/prisma";
 import "./globals.css";
 
 const display = Fraunces({
@@ -32,12 +34,19 @@ export default async function RootLayout({
 }>) {
   const locale = await getLocale();
   const messages = await getMessages();
+  const dbMode = await getDbMode();
 
   return (
     <html lang={locale}>
       <body className={`${display.variable} ${body.variable} antialiased`}>
         <NextIntlClientProvider messages={messages}>
-          <AppChrome>{children}</AppChrome>
+          <AppChrome
+            dbMode={dbMode}
+            desarrolloFile={dbPathHint("desarrollo")}
+            produccionFile={dbPathHint("produccion")}
+          >
+            {children}
+          </AppChrome>
         </NextIntlClientProvider>
       </body>
     </html>

@@ -29,7 +29,13 @@
     "chatHint": "Hablar e historial",
     "ajustes": "Ajustes",
     "ajustesHint": "Preferencias (stub)",
-    "menuVentas": "Menú de ventas"
+    "menuVentas": "Menú de ventas",
+    "homeHint": "Mapa 3D del local",
+    "inventarioHint": "Stock y categorías",
+    "dbMode": "Base de datos",
+    "dbDesarrollo": "Desarrollo",
+    "dbProduccion": "Producción",
+    "dbActive": "Activa"
   },
   "Common": {
     "loading": "Cargando…",

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 
 export async function GET() {
+  const prisma = await getPrisma();
+
   const items = await prisma.menuItem.findMany({
     orderBy: { name: "asc" },
     include: {

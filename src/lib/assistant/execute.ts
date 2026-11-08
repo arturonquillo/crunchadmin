@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma, runWithPrisma } from "@/lib/prisma";
 import { matchInsumoName, toBaseQty } from "@/lib/chat-inventory";
 import { formatQty, packFillPercent, stockStatus } from "@/lib/inventory";
 import { previewProduction } from "@/lib/production";
@@ -655,74 +655,80 @@ export async function executeAssistantTool(
   name: string,
   rawArgs: string
 ): Promise<ToolResult> {
-  let args: Record<string, unknown> = {};
-  try {
-    args = rawArgs ? JSON.parse(rawArgs) : {};
-  } catch {
-    return { ok: false, summary: "Argumentos JSON inválidos." };
-  }
+  return runWithPrisma(async () => {
+    let args: Record<string, unknown> = {};
+    try {
+      args = rawArgs ? JSON.parse(rawArgs) : {};
+    } catch {
+      return { ok: false, summary: "Argumentos JSON inválidos." };
+    }
 
-  let result: ToolResult;
-  switch (name) {
-    case "inventory_add_stock":
-      result = await inventoryAddStock(args as never);
-      break;
-    case "inventory_set_stock":
-      result = await inventorySetStock(args as never);
-      break;
-    case "inventory_list_low":
-      result = await inventoryListLow();
-      break;
-    case "inventory_delete":
-      result = await inventoryDelete(args as never);
-      break;
-    case "inventory_clear_all":
-      result = await inventoryClearAll(args as never);
-      break;
-    case "pendiente_create":
-      result = await pendienteCreate(args as never);
-      break;
-    case "pendiente_update_status":
-      result = await pendienteUpdateStatus(args as never);
-      break;
-    case "pendiente_list":
-      result = await pendienteList(args as never);
-      break;
-    case "pendiente_delete":
-      result = await pendienteDelete(args as never);
-      break;
-    case "receta_list":
-      result = await recetaList();
-      break;
-    case "receta_get":
-      result = await recetaGet(args as never);
-      break;
-    case "receta_create":
-      result = await recetaCreate(args as never);
-      break;
-    case "inventory_list":
-      result = await inventoryList(args as never);
-      break;
-    case "inventory_propose_add_many":
-      result = await inventoryProposeAddMany(args as never);
-      break;
-    case "menu_list":
-      result = await menuList();
-      break;
-    case "produccion_propose":
-      result = await produccionPropose(args as never);
-      break;
-    case "produccion_confirm":
-      result = await produccionConfirm(args as never);
-      break;
-    default:
-      result = { ok: false, summary: `Herramienta desconocida: ${name}` };
-  }
-  return { ...result, tool: name };
+    let result: ToolResult;
+    switch (name) {
+      case "inventory_add_stock":
+        result = await inventoryAddStock(args as never);
+        break;
+      case "inventory_set_stock":
+        result = await inventorySetStock(args as never);
+        break;
+      case "inventory_list_low":
+        result = await inventoryListLow();
+        break;
+      case "inventory_delete":
+        result = await inventoryDelete(args as never);
+        break;
+      case "inventory_clear_all":
+        result = await inventoryClearAll(args as never);
+        break;
+      case "pendiente_create":
+        result = await pendienteCreate(args as never);
+        break;
+      case "pendiente_update_status":
+        result = await pendienteUpdateStatus(args as never);
+        break;
+      case "pendiente_list":
+        result = await pendienteList(args as never);
+        break;
+      case "pendiente_delete":
+        result = await pendienteDelete(args as never);
+        break;
+      case "receta_list":
+        result = await recetaList();
+        break;
+      case "receta_get":
+        result = await recetaGet(args as never);
+        break;
+      case "receta_create":
+        result = await recetaCreate(args as never);
+        break;
+      case "inventory_list":
+        result = await inventoryList(args as never);
+        break;
+      case "inventory_propose_add_many":
+        result = await inventoryProposeAddMany(args as never);
+        break;
+      case "menu_list":
+        result = await menuList();
+        break;
+      case "produccion_propose":
+        result = await produccionPropose(args as never);
+        break;
+      case "produccion_confirm":
+        result = await produccionConfirm(args as never);
+        break;
+      default:
+        result = { ok: false, summary: `Herramienta desconocida: ${name}` };
+    }
+    return { ...result, tool: name };
+  });
 }
 
 /** Execute a previously staged destructive action after CONFIRMAR */
 export async function executeConfirmedAction(kind: string, payload: Record<string, unknown>): Promise<ToolResult> {
+  return runWithPrisma(() => executeConfirmedActionInner(kind, payload));
+}
+
+async function executeConfirmedActionInner(kind: string, payload: Record<string, unknown>): Promise<ToolResult> {
   if (kind === "inventory_delete") {
     const id = String(payload.insumoId);
     await prisma.inventoryMovement.deleteMany({ where: { insumoId: id } });

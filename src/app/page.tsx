@@ -1,9 +1,10 @@
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { HomeRestaurant } from "@/components/restaurant/HomeRestaurant";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
+  const prisma = await getPrisma();
   const pendientes = await prisma.pendiente.findMany({
     orderBy: [{ prioridad: "desc" }, { createdAt: "desc" }],
     select: {
