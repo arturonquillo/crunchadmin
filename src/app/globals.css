@@ -819,6 +819,8 @@ table.data th {
   background: rgba(26, 34, 24, 0.96);
   border-top: 1px solid rgba(247, 244, 234, 0.1);
   color: #f7f4ea;
+  pointer-events: auto;
+  touch-action: manipulation;
 }
 
 .bn-item {
@@ -860,6 +862,11 @@ table.data th {
   cursor: pointer;
   font: inherit;
   padding: 0;
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .bn-speak-inner {
