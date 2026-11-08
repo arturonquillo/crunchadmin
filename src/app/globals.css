@@ -819,6 +819,8 @@ table.data th {
   background: rgba(26, 34, 24, 0.96);
   border-top: 1px solid rgba(247, 244, 234, 0.1);
   color: #f7f4ea;
+  pointer-events: auto;
+  touch-action: manipulation;
 }
 
 .bn-item {
@@ -860,6 +862,11 @@ table.data th {
   cursor: pointer;
   font: inherit;
   padding: 0;
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .bn-speak-inner {
@@ -977,69 +984,485 @@ table.data th {
   color: var(--muted);
 }
 
-.speak-sheet-root {
+.speak-unsupported {
+  margin: 0;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  background: rgba(180, 83, 9, 0.1);
+  border: 1px solid rgba(180, 83, 9, 0.28);
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+/* —— Hablar full chat module —— */
+.hablar-root {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: 95;
   display: flex;
-  align-items: flex-end;
+  align-items: stretch;
   justify-content: center;
 }
 
-.speak-backdrop {
+.hablar-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(26, 34, 24, 0.45);
+  background: rgba(18, 24, 16, 0.55);
+  backdrop-filter: blur(2px);
 }
 
-.speak-sheet {
+.hablar-panel {
   position: relative;
-  width: min(520px, 100%);
-  max-height: min(78dvh, 640px);
-  overflow: auto;
-  background: #fffaf2;
-  border-radius: 18px 18px 0 0;
-  border: 1px solid var(--line);
-  padding: 1rem 1.1rem calc(1.2rem + env(safe-area-inset-bottom, 0px));
-  box-shadow: 0 -12px 36px rgba(26, 34, 24, 0.16);
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 100%);
+  height: min(100dvh, 100%);
+  max-height: 100dvh;
+  margin: 0 auto;
+  background:
+    radial-gradient(120% 80% at 10% -10%, rgba(90, 122, 72, 0.14), transparent 55%),
+    linear-gradient(180deg, #f7f3e8 0%, #efe8d8 100%);
+  border-left: 1px solid rgba(26, 34, 24, 0.08);
+  border-right: 1px solid rgba(26, 34, 24, 0.08);
+  box-shadow: 0 0 48px rgba(18, 24, 16, 0.28);
   animation: rise 280ms ease-out both;
 }
 
-.speak-sheet-head {
+.hablar-head {
+  flex: 0 0 auto;
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 0.75rem;
-  margin-bottom: 0.35rem;
-}
-
-.speak-sheet-head h2 {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 1.35rem;
-}
-
-.speak-mic-row {
-  margin-bottom: 0.75rem;
-}
-
-.speak-mic-btn {
-  display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: calc(0.75rem + env(safe-area-inset-top, 0px)) 1rem 0.65rem;
+  border-bottom: 1px solid rgba(26, 34, 24, 0.08);
+  background: rgba(247, 243, 232, 0.92);
 }
 
-.speak-mic-btn.listening {
-  background: var(--warn);
-  color: #fff;
+.hablar-kicker {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
-.speak-reply {
-  background: var(--accent-soft);
-  border-radius: 10px;
-  padding: 0.75rem 0.85rem;
+.hablar-head h2 {
+  margin: 0.05rem 0 0;
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  color: var(--ink);
+}
+
+.hablar-close {
+  appearance: none;
+  border: 1px solid rgba(26, 34, 24, 0.14);
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--ink);
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.hablar-close:active {
+  transform: scale(0.96);
+}
+
+.hablar-log {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 1rem 1rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.hablar-empty {
+  margin: 2.5rem auto;
+  text-align: center;
+  color: var(--ink-soft);
+  max-width: 18rem;
+}
+
+.hablar-empty .muted {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.hablar-bubble {
+  max-width: 92%;
+  padding: 0.7rem 0.85rem;
+  border-radius: 14px;
+  animation: rise 220ms ease-out both;
+}
+
+.hablar-bubble.user {
+  align-self: flex-end;
+  background: #2f3d2a;
+  color: #f7f4ea;
+  border-bottom-right-radius: 4px;
+}
+
+.hablar-bubble.assistant {
+  align-self: flex-start;
+  background: rgba(255, 252, 245, 0.95);
+  color: var(--ink);
+  border: 1px solid rgba(26, 34, 24, 0.08);
+  border-bottom-left-radius: 4px;
+}
+
+.hablar-meta {
+  display: block;
+  font-size: 0.7rem;
+  opacity: 0.7;
+  margin-bottom: 0.3rem;
+}
+
+.hablar-bubble-body {
+  font-size: 0.98rem;
+  line-height: 1.45;
+}
+
+.chat-md {
+  overflow-wrap: anywhere;
+}
+
+.chat-md > :first-child {
+  margin-top: 0;
+}
+
+.chat-md > :last-child {
+  margin-bottom: 0;
+}
+
+.chat-md p {
+  margin: 0 0 0.55em;
+}
+
+.chat-md strong,
+.chat-md-strong {
+  font-weight: 700;
+}
+
+.chat-md em {
+  font-style: italic;
+}
+
+.chat-md ul,
+.chat-md ol {
+  margin: 0.35em 0 0.55em;
+  padding-left: 1.25em;
+}
+
+.chat-md li {
+  margin: 0.15em 0;
+}
+
+.chat-md li > p {
+  margin: 0;
+}
+
+.chat-md a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.chat-md code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+  padding: 0.05em 0.3em;
+  border-radius: 4px;
+  background: rgba(26, 34, 24, 0.08);
+}
+
+.hablar-bubble.user .chat-md code {
+  background: rgba(247, 244, 234, 0.14);
+}
+
+.hablar-typing-dots {
+  display: flex;
+  gap: 0.3rem;
+  padding: 0.25rem 0;
+}
+
+.hablar-typing-dots span {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--muted);
+  animation: pulse-mark 1.1s ease-in-out infinite;
+}
+
+.hablar-typing-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.hablar-typing-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.chat-widget {
+  margin-top: 0.7rem;
+  padding: 0.7rem 0.75rem;
+  border-radius: 12px;
+  background: rgba(90, 122, 72, 0.08);
+  border: 1px solid rgba(90, 122, 72, 0.22);
+}
+
+.chat-widget.spent {
+  opacity: 0.55;
+}
+
+.chat-widget-title {
+  margin: 0 0 0.2rem;
+  font-weight: 650;
+  font-size: 0.92rem;
+}
+
+.chat-widget-summary {
+  margin: 0 0 0.65rem;
+  font-size: 0.86rem;
+  color: var(--ink-soft);
   white-space: pre-wrap;
-  font-size: 0.95rem;
+}
+
+.chat-widget-spent {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.chat-widget-actions {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.chat-widget-actions.wrap {
+  flex-wrap: wrap;
+}
+
+.chat-widget-confirm {
+  background: #2f3d2a;
+  color: #f7f4ea;
+}
+
+.chat-choice {
+  font-size: 0.86rem !important;
+  padding: 0.4rem 0.7rem !important;
+}
+
+.hablar-banner {
+  margin: 0 1rem 0.35rem;
+}
+
+.hablar-status,
+.hablar-interim {
+  margin: 0 1rem 0.25rem;
+  font-size: 0.85rem;
+  color: var(--accent-deep);
+}
+
+.voice-meter {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 100%;
+  width: 100%;
+}
+
+.voice-meter-bar {
+  flex: 1 1 0;
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(180deg, #8fbf6a 0%, #5a7a48 100%);
+  transform-origin: center;
+  will-change: transform;
+}
+
+.hablar-composer {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.45rem;
+  align-items: end;
+  padding: 0.65rem 0.85rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid rgba(26, 34, 24, 0.08);
+  background: rgba(247, 243, 232, 0.96);
+}
+
+.hablar-input-wrap {
+  position: relative;
+  min-width: 0;
+  border-radius: 14px;
+  transition: box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.hablar-input-wrap.is-recording {
+  animation: hablar-glow 1.25s ease-in-out infinite;
+  box-shadow:
+    0 0 0 2px rgba(194, 65, 12, 0.35),
+    0 0 18px rgba(194, 65, 12, 0.28);
+}
+
+.hablar-input-wrap.is-live.is-recording {
+  box-shadow:
+    0 0 0 2px rgba(90, 122, 72, 0.45),
+    0 0 20px rgba(90, 122, 72, 0.32);
+  animation: hablar-glow-live 1.1s ease-in-out infinite;
+}
+
+.hablar-input-wrap.is-transcribing {
+  box-shadow: 0 0 0 2px rgba(90, 122, 72, 0.28);
+}
+
+.hablar-input {
+  width: 100%;
+  min-height: 2.6rem;
+  /* JS grows up to 8 lines; overflow scrolls only past that */
+  max-height: calc(1.4em * 8 + 1.3rem);
+  resize: none;
+  overflow-y: hidden;
+  border-radius: 14px;
+  border: 1px solid rgba(26, 34, 24, 0.14);
+  background: #fffef9;
+  padding: 0.65rem 0.8rem;
+  font: inherit;
+  line-height: 1.4;
+  color: var(--ink);
+  field-sizing: content;
+  display: block;
+}
+
+.hablar-input-wrap.is-recording .hablar-input {
+  border-color: transparent;
+  padding-bottom: 1.15rem;
+}
+
+.hablar-input-meter {
+  position: absolute;
+  left: 0.7rem;
+  right: 0.7rem;
+  bottom: 0.35rem;
+  height: 0.55rem;
+  pointer-events: none;
+  opacity: 0.9;
+}
+
+.hablar-mic,
+.hablar-send {
+  appearance: none;
+  border: none;
+  width: 2.7rem;
+  height: 2.7rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  position: relative;
+}
+
+.hablar-mic {
+  background: rgba(47, 61, 42, 0.1);
+  color: var(--ink);
+}
+
+.hablar-mic.listening,
+.hablar-mic.is-stop {
+  background: #e11d48;
+  color: #fff;
+  box-shadow: 0 0 0 4px rgba(225, 29, 72, 0.2);
+  animation: none;
+}
+
+.hablar-mic-timer {
+  position: absolute;
+  top: -0.55rem;
+  right: -0.35rem;
+  min-width: 1.7rem;
+  padding: 0.08rem 0.28rem;
+  border-radius: 999px;
+  background: #1a2218;
+  color: #f7f4ea;
+  font-size: 0.58rem;
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.hablar-mic.transcribing {
+  background: #5a7a48;
+  color: #fff;
+  opacity: 1;
+}
+
+.hablar-mic:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.hablar-mic.transcribing:disabled {
+  opacity: 0.85;
+  cursor: wait;
+}
+
+@keyframes hablar-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px rgba(194, 65, 12, 0.28),
+      0 0 12px rgba(194, 65, 12, 0.18);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px rgba(194, 65, 12, 0.5),
+      0 0 22px rgba(194, 65, 12, 0.38);
+  }
+}
+
+@keyframes hablar-glow-live {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px rgba(90, 122, 72, 0.32),
+      0 0 12px rgba(90, 122, 72, 0.2);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px rgba(90, 122, 72, 0.55),
+      0 0 24px rgba(90, 122, 72, 0.4);
+  }
+}
+
+.hablar-send {
+  background: #2f3d2a;
+  color: #f7f4ea;
+}
+
+.hablar-send:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+@media (min-width: 720px) {
+  .hablar-root {
+    align-items: center;
+    padding: 1.25rem;
+  }
+  .hablar-panel {
+    height: min(860px, calc(100dvh - 2.5rem));
+    border-radius: 18px;
+    border: 1px solid rgba(26, 34, 24, 0.1);
+    overflow: hidden;
+  }
 }
 
 .inv-list {
@@ -1476,4 +1899,176 @@ tr.row-warn td {
 
 .app-chrome.is-home .home-3d {
   min-height: calc(100dvh - 3.2rem - 4.6rem);
+}
+
+.list-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.list-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0.15rem;
+  border-bottom: 1px solid rgba(26, 34, 24, 0.08);
+}
+
+.list-card:last-child {
+  border-bottom: none;
+}
+
+.list-card-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.list-card-meta {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.list-card-note {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.list-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.25rem;
+}
+
+.pendientes-card-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+  margin-top: 0.45rem;
+}
+
+.pendientes-card-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.pendientes-card-controls select {
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--ink);
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #fffef9;
+  padding: 0.35rem 0.45rem;
+}
+
+/* —— List page toolbar + create form sheet —— */
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.page-head .section-title {
+  margin-bottom: 0.25rem;
+}
+
+.page-head-actions {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.form-sheet-root {
+  position: fixed;
+  inset: 0;
+  z-index: 92;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.form-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(18, 24, 16, 0.5);
+  backdrop-filter: blur(2px);
+}
+
+.form-sheet {
+  position: relative;
+  z-index: 1;
+  width: min(560px, 100%);
+  max-height: min(88dvh, 820px);
+  overflow: auto;
+  background: linear-gradient(180deg, #f7f3e8 0%, #efe8d8 100%);
+  border-radius: 18px 18px 0 0;
+  border: 1px solid rgba(26, 34, 24, 0.1);
+  border-bottom: none;
+  padding: 0.45rem 1rem calc(1.1rem + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -16px 40px rgba(18, 24, 16, 0.22);
+  animation: rise 260ms ease-out both;
+  -webkit-overflow-scrolling: touch;
+}
+
+.form-sheet-handle {
+  width: 2.4rem;
+  height: 0.28rem;
+  border-radius: 99px;
+  background: rgba(26, 34, 24, 0.18);
+  margin: 0.15rem auto 0.55rem;
+}
+
+.form-sheet-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.form-sheet-kicker {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.form-sheet-head h2 {
+  margin: 0.1rem 0 0;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+}
+
+.form-sheet-body {
+  padding-bottom: 0.25rem;
+}
+
+@media (min-width: 720px) {
+  .form-sheet-root {
+    align-items: center;
+    padding: 1.25rem;
+  }
+  .form-sheet {
+    border-radius: 18px;
+    border-bottom: 1px solid rgba(26, 34, 24, 0.1);
+    max-height: min(80dvh, 760px);
+  }
+  .form-sheet-handle {
+    display: none;
+  }
 }

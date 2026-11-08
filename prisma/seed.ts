@@ -147,6 +147,90 @@ async function main() {
         reorderHint: "Caja 5 kg",
         fifoNote: "FIFO en cámara fría",
       },
+      {
+        name: "Harina",
+        category: "SECOS",
+        baseUnit: "kg",
+        quantityOnHand: 18,
+        packSize: 25,
+        minQty: 5,
+        reorderHint: "Saco 25 kg — demo Hablar «agrega 20 kg de harina»",
+        fifoNote: "Sacos nuevos detrás",
+      },
+      {
+        name: "Cebolla",
+        category: "FRESCOS",
+        baseUnit: "kg",
+        quantityOnHand: 8,
+        packSize: 20,
+        minQty: 3,
+        reorderHint: "Bolsa 20 kg",
+      },
+      {
+        name: "Tomate",
+        category: "FRESCOS",
+        baseUnit: "kg",
+        quantityOnHand: 6,
+        packSize: 10,
+        minQty: 2,
+        reorderHint: "Cajón 10 kg",
+        fifoNote: "Usar maduros primero",
+      },
+      {
+        name: "Arroz",
+        category: "SECOS",
+        baseUnit: "kg",
+        quantityOnHand: 12,
+        packSize: 25,
+        minQty: 5,
+        reorderHint: "Saco 25 kg",
+      },
+      {
+        name: "Azúcar",
+        category: "SECOS",
+        baseUnit: "kg",
+        quantityOnHand: 4,
+        packSize: 25,
+        minQty: 2,
+        reorderHint: "Saco 25 kg",
+      },
+      {
+        name: "Leche",
+        category: "LACTEOS",
+        baseUnit: "L",
+        quantityOnHand: 9,
+        packSize: 12,
+        minQty: 3,
+        reorderHint: "Caja 12 L",
+        fifoNote: "FIFO en cámara",
+      },
+      {
+        name: "Queso mozzarella",
+        category: "LACTEOS",
+        baseUnit: "kg",
+        quantityOnHand: 2.2,
+        packSize: 5,
+        minQty: 0.8,
+        reorderHint: "Bloque 5 kg",
+      },
+      {
+        name: "Orégano",
+        category: "ESPECIAS",
+        baseUnit: "kg",
+        quantityOnHand: 0.25,
+        packSize: 0.5,
+        minQty: 0.05,
+        reorderHint: "Bolsa 500 g",
+      },
+      {
+        name: "Pan de hamburguesa",
+        category: "OTROS",
+        baseUnit: "ud",
+        quantityOnHand: 48,
+        packSize: 48,
+        minQty: 24,
+        reorderHint: "Caja 48 ud",
+      },
     ].map((d) => prisma.insumo.create({ data: d }))
   );
 
@@ -410,6 +494,199 @@ async function main() {
     },
   });
 
+  const burger = await prisma.receta.create({
+    data: {
+      name: "Burger casa",
+      notes: "Hamburguesa demo con pan, frango y mayo",
+      yieldQty: 1,
+      yieldUnit: "ud",
+      yieldLabel: "burger",
+      userId: user.id,
+      versions: {
+        create: {
+          number: 1,
+          label: "v1",
+          changelog: "Receta corta menú",
+          authorId: user.id,
+          lines: {
+            create: [
+              {
+                name: "Pan de hamburguesa",
+                quantity: 1,
+                unit: "ud",
+                sortOrder: 1,
+                insumoId: byName["Pan de hamburguesa"].id,
+              },
+              {
+                name: "Frango",
+                quantity: 0.12,
+                unit: "kg",
+                sortOrder: 2,
+                insumoId: byName["Frango"].id,
+              },
+              {
+                name: "Mayonesa",
+                quantity: 0.03,
+                unit: "kg",
+                sortOrder: 3,
+                insumoId: byName["Yema de huevo"].id,
+              },
+              {
+                name: "Tomate",
+                quantity: 0.04,
+                unit: "kg",
+                sortOrder: 4,
+                insumoId: byName["Tomate"].id,
+              },
+            ],
+          },
+        },
+      },
+    },
+    include: { versions: true },
+  });
+  await prisma.receta.update({
+    where: { id: burger.id },
+    data: { currentVersionId: burger.versions[0].id },
+  });
+
+  await prisma.menuItem.create({
+    data: {
+      name: "Burger crunch",
+      description: "Burger de la casa",
+      recetaId: burger.id,
+      platformSpecs: {
+        create: [
+          {
+            platform: "FOODIE",
+            displayName: "Burger Crunch",
+            price: 120,
+            available: true,
+            channelNotes: "Combo disponible",
+          },
+          {
+            platform: "TIENDA_PROPIA",
+            displayName: "Hamburguesa casa",
+            price: 95,
+            available: true,
+          },
+        ],
+      },
+    },
+  });
+
+  await prisma.menuItem.create({
+    data: {
+      name: "Frango marinado",
+      description: "Porción 250 g",
+      recetaId: marinado.id,
+      platformSpecs: {
+        create: [
+          {
+            platform: "FOODIE",
+            displayName: "Frango marinado",
+            price: 89,
+            available: true,
+          },
+          {
+            platform: "TIENDA_PROPIA",
+            displayName: "Frango de la casa",
+            price: 75,
+            available: false,
+            channelNotes: "Pausado en local",
+          },
+        ],
+      },
+    },
+  });
+
+  // —— Producción histórica (dummy) ——
+  const prod1 = await prisma.produccion.create({
+    data: {
+      recetaId: marinado.id,
+      versionId: marinadoV1.id,
+      title: "Marinado de frango — 5 kg",
+      baseKind: "yield",
+      baseName: "frango marinado",
+      targetQuantity: 5,
+      targetUnit: "kg",
+      factor: 5,
+      status: "CONFIRMADA",
+      notes: "Batch matutino seed",
+      userId: user.id,
+      lines: {
+        create: [
+          {
+            name: "Frango",
+            quantity: 5,
+            unit: "kg",
+            insumoId: byName["Frango"].id,
+            deductedQty: 5,
+            onHandBefore: 23,
+            onHandAfter: 18,
+            sortOrder: 1,
+          },
+          {
+            name: "Aceite",
+            quantity: 0.2,
+            unit: "L",
+            insumoId: byName["Aceite vegetal"].id,
+            deductedQty: 0.2,
+            onHandBefore: 12.2,
+            onHandAfter: 12,
+            sortOrder: 2,
+          },
+          {
+            name: "Ajo",
+            quantity: 0.1,
+            unit: "kg",
+            insumoId: byName["Ajo"].id,
+            deductedQty: 0.1,
+            onHandBefore: 1.6,
+            onHandAfter: 1.5,
+            sortOrder: 3,
+          },
+        ],
+      },
+    },
+  });
+
+  await prisma.produccion.create({
+    data: {
+      recetaId: mayo.id,
+      versionId: v1.id,
+      title: "Mayonesa casa — 1.8 kg",
+      baseKind: "yield",
+      baseName: "mayonesa",
+      targetQuantity: 1.8,
+      targetUnit: "kg",
+      factor: 1.8,
+      status: "CONFIRMADA",
+      notes: "Batch tarde seed",
+      userId: user.id,
+      lines: {
+        create: [
+          {
+            name: "Aceite",
+            quantity: 1.26,
+            unit: "L",
+            insumoId: byName["Aceite vegetal"].id,
+            deductedQty: 1.26,
+            sortOrder: 1,
+          },
+          {
+            name: "Yema de huevo",
+            quantity: 0.27,
+            unit: "kg",
+            insumoId: byName["Yema de huevo"].id,
+            deductedQty: 0.27,
+            sortOrder: 2,
+          },
+        ],
+      },
+    },
+  });
+
   await prisma.pendiente.createMany({
     data: [
       {
@@ -491,16 +768,57 @@ async function main() {
         zone: "bano",
         userId: user.id,
       },
+      {
+        title: "Pedir mozzarella y pan",
+        description: "Stock bajo para burgers del finde",
+        categoria: "COMPRAS",
+        estado: "PENDIENTE",
+        prioridad: "ALTA",
+        zone: "oficina",
+        userId: user.id,
+      },
+      {
+        title: "Limpiar campana de cocina",
+        categoria: "MEJORAS_FISICAS",
+        estado: "PENDIENTE",
+        prioridad: "MEDIA",
+        zone: "cocina",
+        userId: user.id,
+      },
+      {
+        title: "Probar burger crunch en Foodie",
+        description: "Foto y precio 120",
+        categoria: "PLANES_FUTUROS",
+        estado: "EN_CURSO",
+        prioridad: "MEDIA",
+        zone: "oficina",
+        recetaId: burger.id,
+        userId: user.id,
+      },
     ],
   });
 
-  await prisma.reminder.create({
-    data: {
-      title: "Aceite crítico",
-      body: "Reponer aceite vegetal esta semana",
-      dueAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
-      userId: user.id,
-    },
+  await prisma.reminder.createMany({
+    data: [
+      {
+        title: "Aceite crítico",
+        body: "Reponer aceite vegetal esta semana",
+        dueAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+        userId: user.id,
+      },
+      {
+        title: "Producción marinado",
+        body: "Programar batch 5 kg de frango marinado",
+        dueAt: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000),
+        userId: user.id,
+      },
+      {
+        title: "Inventario semanal",
+        body: "Contar secos y lácteos el lunes",
+        dueAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+        userId: user.id,
+      },
+    ],
   });
 
   await prisma.chatThread.create({
@@ -514,14 +832,41 @@ async function main() {
             content:
               "Eres el asistente de Crunchadmin. Ayudas con pendientes, inventario, producción, recetas (escalado) y menú. Responde en español.",
           },
+          {
+            role: "USER",
+            content: "Agrega 20 kg de harina",
+          },
+          {
+            role: "ASSISTANT",
+            content:
+              "Sumé 20 kg a «Harina». Stock listo para producción y fichas técnicas.",
+          },
+          {
+            role: "USER",
+            content: "¿Cuánto frango tengo?",
+          },
+          {
+            role: "ASSISTANT",
+            content: "Frango: 18 kg en cámara (pack 10 kg, mínimo 5 kg).",
+          },
+          {
+            role: "USER",
+            content: "Creá un pendiente: limpiar salón principal",
+          },
+          {
+            role: "ASSISTANT",
+            content:
+              "Pendiente creado: «limpiar salón principal» · zona salon · prioridad MEDIA.",
+          },
         ],
       },
     },
   });
 
   console.log("Seed OK");
-  console.log("  Receta demo mayo:", mayo.name);
-  console.log("  Receta demo producción:", marinado.name, "→ 5 kg");
+  console.log("  Insumos:", Object.keys(byName).length);
+  console.log("  Recetas:", mayo.name, "/", marinado.name, "/", papas.name, "/", burger.name);
+  console.log("  Producción demo:", prod1.title);
   console.log("  Menú item:", menuMayo.name);
   console.log("  User:", user.email);
 }

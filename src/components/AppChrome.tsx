@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { SpeakSheet } from "@/components/SpeakSheet";
 
 const DRAWER_LINKS = [
   { href: "/pendientes", label: "Pendientes", hint: "Trabajo por zona" },
@@ -177,158 +178,9 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
         </ul>
       </aside>
 
-      {speakOpen && <SpeakSheet onClose={() => setSpeakOpen(false)} />}
+      {speakOpen && (
+        <SpeakSheet autoStart onClose={() => setSpeakOpen(false)} />
+      )}
     </div>
   );
 }
-
-function SpeakSheet({ onClose }: { onClose: () => void }) {
-  const [text, setText] = useState("");
-  const [listening, setListening] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
-  const [reply, setReply] = useState<string | null>(null);
-  const recognitionRef = useRef<{ stop: () => void } | null>(null);
-
-  useEffect(() => {
-    return () => {
-      recognitionRef.current?.stop();
-    };
-  }, []);
-
-  function startMic() {
-    const SR =
-      typeof window !== "undefined"
-        ? (window as unknown as {
-            SpeechRecognition?: new () => SpeechRecognitionLike;
-            webkitSpeechRecognition?: new () => SpeechRecognitionLike;
-          }).SpeechRecognition ||
-          (window as unknown as {
-            webkitSpeechRecognition?: new () => SpeechRecognitionLike;
-          }).webkitSpeechRecognition
-        : undefined;
-
-    if (!SR) {
-      setStatus("Tu navegador no soporta dictado. Escribe el mensaje abajo.");
-      return;
-    }
-
-    const recognition = new SR();
-    recognition.lang = "es-ES";
-    recognition.interimResults = false;
-    recognition.continuous = false;
-    recognition.onstart = () => {
-      setListening(true);
-      setStatus("Escuchando…");
-    };
-    recognition.onerror = () => {
-      setListening(false);
-      setStatus("No se pudo capturar audio. Usa el texto.");
-    };
-    recognition.onend = () => {
-      setListening(false);
-      recognitionRef.current = null;
-    };
-    recognition.onresult = (event: { results: { [i: number]: { [j: number]: { transcript: string } } } }) => {
-      const said = event.results[0]?.[0]?.transcript ?? "";
-      if (said) setText((prev) => (prev ? `${prev} ${said}` : said));
-      setStatus(null);
-    };
-    recognitionRef.current = recognition;
-    recognition.start();
-  }
-
-  function stopMic() {
-    recognitionRef.current?.stop();
-    setListening(false);
-  }
-
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (!text.trim()) return;
-    setSending(true);
-    setReply(null);
-    setStatus(null);
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text.trim(), source: "speak" }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setStatus(data.error || "Error al enviar");
-        return;
-      }
-      setReply(data.assistantMessage?.content || "Registrado.");
-      setText("");
-    } catch (err) {
-      setStatus(String(err));
-    } finally {
-      setSending(false);
-    }
-  }
-
-  return (
-    <div className="speak-sheet-root" role="dialog" aria-modal="true" aria-label="Informar al sistema">
-      <div className="speak-backdrop" onClick={onClose} />
-      <div className="speak-sheet">
-        <div className="speak-sheet-head">
-          <div>
-            <p className="zone-sheet-kicker">Asistente</p>
-            <h2>Decile al sistema</h2>
-          </div>
-          <button type="button" className="btn ghost" onClick={onClose}>
-            Cerrar
-          </button>
-        </div>
-        <p className="section-sub" style={{ marginTop: 0 }}>
-          Ej.: «quedan 8 L de aceite» o «recibí 5 kg de frango». Se guarda en el chat y actualiza
-          inventario si reconoce el insumo.
-        </p>
-        <form onSubmit={onSubmit} className="speak-form">
-          <div className="speak-mic-row">
-            <button
-              type="button"
-              className={`btn speak-mic-btn ${listening ? "listening" : ""}`}
-              onClick={listening ? stopMic : startMic}
-            >
-              <IconMic />
-              {listening ? "Detener" : "Dictar"}
-            </button>
-          </div>
-          <div className="field">
-            <label htmlFor="speak-text">Mensaje</label>
-            <textarea
-              id="speak-text"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Escribí o dictá lo que querés informar…"
-              rows={3}
-              autoFocus
-            />
-          </div>
-          {status && <p className="error">{status}</p>}
-          {reply && <p className="speak-reply">{reply}</p>}
-          <div className="form-actions">
-            <button className="btn" type="submit" disabled={sending || !text.trim()}>
-              {sending ? "Enviando…" : "Enviar"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-type SpeechRecognitionLike = {
-  lang: string;
-  interimResults: boolean;
-  continuous: boolean;
-  onstart: (() => void) | null;
-  onerror: (() => void) | null;
-  onend: (() => void) | null;
-  onresult: ((event: { results: { [i: number]: { [j: number]: { transcript: string } } } }) => void) | null;
-  start: () => void;
-  stop: () => void;
-};

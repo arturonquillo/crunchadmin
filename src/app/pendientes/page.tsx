@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormSheet } from "@/components/FormSheet";
 import {
   CATEGORIA_LABEL,
   CATEGORIAS,
@@ -43,6 +44,7 @@ export default function PendientesPage() {
   const [filterCat, setFilterCat] = useState<string>("");
   const [filterZone, setFilterZone] = useState<string>("");
   const [form, setForm] = useState(emptyForm);
+  const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -83,6 +85,7 @@ export default function PendientesPage() {
       return;
     }
     setForm(emptyForm);
+    setShowForm(false);
     await load();
   }
 
@@ -103,14 +106,148 @@ export default function PendientesPage() {
 
   return (
     <div className="shell">
-      <h1 className="section-title">Pendientes</h1>
-      <p className="section-sub">
-        Lista por categoría y zona del local. En Inicio también aparecen anclados
-        al mapa 3D.
-      </p>
+      <div className="page-head">
+        <div>
+          <h1 className="section-title">Pendientes</h1>
+          <p className="section-sub" style={{ marginBottom: 0 }}>
+            Por categoría y zona. También anclados al mapa 3D.
+          </p>
+        </div>
+        <div className="page-head-actions">
+          <button type="button" className="btn" onClick={() => setShowForm(true)}>
+            + Nuevo
+          </button>
+        </div>
+      </div>
 
-      <section className="panel">
-        <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Nuevo pendiente</h2>
+      <section className="panel" style={{ marginTop: "0.85rem" }}>
+        <div className="tabs" role="tablist" aria-label="Filtrar categoría">
+          <button
+            type="button"
+            className={!filterCat ? "tab active" : "tab"}
+            onClick={() => setFilterCat("")}
+          >
+            Todas
+          </button>
+          {CATEGORIAS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={filterCat === c ? "tab active" : "tab"}
+              onClick={() => setFilterCat(c)}
+            >
+              {CATEGORIA_LABEL[c]}
+            </button>
+          ))}
+        </div>
+        <div className="tabs" role="tablist" aria-label="Filtrar zona">
+          <button
+            type="button"
+            className={!filterZone ? "tab active" : "tab"}
+            onClick={() => setFilterZone("")}
+          >
+            Todas las zonas
+          </button>
+          {ZONE_IDS.map((z) => (
+            <button
+              key={z}
+              type="button"
+              className={filterZone === z ? "tab active" : "tab"}
+              onClick={() => setFilterZone(z)}
+            >
+              {ZONE_LABEL[z]}
+            </button>
+          ))}
+        </div>
+
+        {loading ? (
+          <p className="empty">Cargando…</p>
+        ) : items.length === 0 ? (
+          <p className="empty">
+            No hay pendientes.{" "}
+            <button type="button" className="btn ghost" onClick={() => setShowForm(true)}>
+              Crear uno
+            </button>
+          </p>
+        ) : (
+          <ul className="list-cards">
+            {items.map((item) => (
+              <li key={item.id} className="list-card pendientes-card">
+                <div className="list-card-main">
+                  <strong>{item.title}</strong>
+                  {item.description && (
+                    <span className="list-card-note">{item.description}</span>
+                  )}
+                  <div className="list-card-badges">
+                    <span className="badge">{ZONE_LABEL[item.zone]}</span>
+                    <span className="badge">{CATEGORIA_LABEL[item.categoria]}</span>
+                    <span
+                      className={
+                        item.prioridad === "CRITICA" || item.prioridad === "ALTA"
+                          ? "badge danger"
+                          : "badge"
+                      }
+                    >
+                      {PRIORIDAD_LABEL[item.prioridad]}
+                    </span>
+                  </div>
+                  <div className="pendientes-card-controls">
+                    <label>
+                      Zona
+                      <select
+                        value={item.zone}
+                        onChange={(e) =>
+                          patch(item.id, { zone: e.target.value as RestaurantZone })
+                        }
+                        aria-label={`Zona de ${item.title}`}
+                      >
+                        {ZONE_IDS.map((z) => (
+                          <option key={z} value={z}>
+                            {ZONE_LABEL[z]}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Estado
+                      <select
+                        value={item.estado}
+                        onChange={(e) =>
+                          patch(item.id, {
+                            estado: e.target.value as PendienteEstado,
+                          })
+                        }
+                        aria-label={`Estado de ${item.title}`}
+                      >
+                        {ESTADOS.map((s) => (
+                          <option key={s} value={s}>
+                            {ESTADO_LABEL[s]}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="btn danger"
+                  style={{ padding: "0.4rem 0.65rem", fontSize: "0.8rem" }}
+                  onClick={() => remove(item.id)}
+                >
+                  Borrar
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <FormSheet
+        open={showForm}
+        title="Nuevo pendiente"
+        kicker="Tareas"
+        onClose={() => setShowForm(false)}
+      >
         <form onSubmit={onCreate}>
           <div className="form-grid">
             <div className="field" style={{ gridColumn: "1 / -1" }}>
@@ -120,6 +257,7 @@ export default function PendientesPage() {
                 required
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
+                autoFocus
               />
             </div>
             <div className="field" style={{ gridColumn: "1 / -1" }}>
@@ -127,9 +265,7 @@ export default function PendientesPage() {
               <textarea
                 id="description"
                 value={form.description}
-                onChange={(e) =>
-                  setForm({ ...form, description: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
               />
             </div>
             <div className="field">
@@ -152,7 +288,7 @@ export default function PendientesPage() {
               </select>
             </div>
             <div className="field">
-              <label htmlFor="zone">Zona del local</label>
+              <label htmlFor="zone">Zona</label>
               <select
                 id="zone"
                 value={form.zone}
@@ -200,152 +336,14 @@ export default function PendientesPage() {
               </select>
             </div>
           </div>
+          {error && <p className="error">{error}</p>}
           <div className="form-actions">
             <button className="btn" type="submit">
               Crear
             </button>
           </div>
         </form>
-        {error && (
-          <p style={{ color: "var(--danger)", marginTop: "0.75rem" }}>{error}</p>
-        )}
-      </section>
-
-      <section className="panel">
-        <div className="tabs" role="tablist" aria-label="Filtrar categoría">
-          <button
-            type="button"
-            className={!filterCat ? "tab active" : "tab"}
-            onClick={() => setFilterCat("")}
-          >
-            Todas
-          </button>
-          {CATEGORIAS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              className={filterCat === c ? "tab active" : "tab"}
-              onClick={() => setFilterCat(c)}
-            >
-              {CATEGORIA_LABEL[c]}
-            </button>
-          ))}
-        </div>
-        <div className="tabs" role="tablist" aria-label="Filtrar zona">
-          <button
-            type="button"
-            className={!filterZone ? "tab active" : "tab"}
-            onClick={() => setFilterZone("")}
-          >
-            Todas las zonas
-          </button>
-          {ZONE_IDS.map((z) => (
-            <button
-              key={z}
-              type="button"
-              className={filterZone === z ? "tab active" : "tab"}
-              onClick={() => setFilterZone(z)}
-            >
-              {ZONE_LABEL[z]}
-            </button>
-          ))}
-        </div>
-
-        {loading ? (
-          <p className="empty">Cargando…</p>
-        ) : items.length === 0 ? (
-          <p className="empty">No hay pendientes en este filtro.</p>
-        ) : (
-          <div className="table-wrap">
-            <table className="data">
-              <thead>
-                <tr>
-                  <th>Título</th>
-                  <th>Zona</th>
-                  <th>Categoría</th>
-                  <th>Prioridad</th>
-                  <th>Estado</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <tr key={item.id}>
-                    <td>
-                      <strong>{item.title}</strong>
-                      {item.description && (
-                        <div style={{ color: "var(--muted)", fontSize: "0.85rem" }}>
-                          {item.description}
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      <select
-                        value={item.zone}
-                        onChange={(e) =>
-                          patch(item.id, {
-                            zone: e.target.value as RestaurantZone,
-                          })
-                        }
-                        aria-label={`Zona de ${item.title}`}
-                      >
-                        {ZONE_IDS.map((z) => (
-                          <option key={z} value={z}>
-                            {ZONE_LABEL[z]}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td>
-                      <span className="badge">
-                        {CATEGORIA_LABEL[item.categoria]}
-                      </span>
-                    </td>
-                    <td>
-                      <span
-                        className={
-                          item.prioridad === "CRITICA" || item.prioridad === "ALTA"
-                            ? "badge danger"
-                            : "badge"
-                        }
-                      >
-                        {PRIORIDAD_LABEL[item.prioridad]}
-                      </span>
-                    </td>
-                    <td>
-                      <select
-                        value={item.estado}
-                        onChange={(e) =>
-                          patch(item.id, {
-                            estado: e.target.value as PendienteEstado,
-                          })
-                        }
-                        aria-label={`Estado de ${item.title}`}
-                      >
-                        {ESTADOS.map((s) => (
-                          <option key={s} value={s}>
-                            {ESTADO_LABEL[s]}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        className="btn danger"
-                        style={{ padding: "0.35rem 0.6rem", fontSize: "0.8rem" }}
-                        onClick={() => remove(item.id)}
-                      >
-                        Borrar
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      </FormSheet>
     </div>
   );
 }

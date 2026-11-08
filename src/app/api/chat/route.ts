@@ -7,9 +7,40 @@ import {
   toBaseQty,
 } from "@/lib/chat-inventory";
 import { formatQty } from "@/lib/inventory";
+import { SYSTEM_PROMPT } from "@/lib/assistant/tools";
+import {
+  takePendingByCode,
+  takeLatestPending,
+  peekLatestPending,
+  listPendingActions,
+  cancelPendingByCode,
+  matchesConfirmSecret,
+  getConfirmSecret,
+} from "@/lib/assistant/confirm-store";
+import {
+  executeAssistantTool,
+  executeConfirmedAction,
+} from "@/lib/assistant/execute";
+import { widgetsFromToolResults } from "@/lib/assistant/widgets";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
+
+function isBareCancel(text: string): boolean {
+  return /^(cancelar|cancelo|no)\s*[.!]?$/i.test(text.trim());
+}
+
+function parseCancelCode(text: string): string | null {
+  const m = text.trim().match(/^CANCELAR\s+([A-Za-z0-9_-]+)\s*$/i);
+  return m ? m[1].toUpperCase() : null;
+}
+
+/** Bare «CONFIRMAR» / «confirmo» without the 6-char code — owner often replies that way. */
+function isBareConfirm(text: string): boolean {
+  const t = text.trim();
+  // Do NOT treat bare «sí» as confirm — too ambiguous in chat.
+  return /^(confirmar|confirmo|sí\s*confirmo|si\s*confirmo)\s*[.!]?$/i.test(t);
+}
 
 async function getOrCreateThread() {
   const existing = await prisma.chatThread.findFirst({
@@ -22,14 +53,14 @@ async function getOrCreateThread() {
       messages: {
         create: {
           role: "SYSTEM",
-          content:
-            "Eres el asistente de Crunchadmin para un restaurante. Ayudas con pendientes, inventario, producción, recetas (incluyendo escalado) y menú multi-plataforma. Responde siempre en español. Para cambios sensibles pide confirmación.",
+          content: SYSTEM_PROMPT,
         },
       },
     },
   });
 }
 
+/** Legacy regex path — still used as offline/stub fallback for stock phrases */
 async function applyInventoryFromText(text: string): Promise<{
   applied: boolean;
   summary: string | null;
@@ -41,11 +72,25 @@ async function applyInventoryFromText(text: string): Promise<{
   }
 
   const insumos = await prisma.insumo.findMany();
-  const match = matchInsumoName(insumos, intent.nameQuery);
+  let match = matchInsumoName(insumos, intent.nameQuery);
+
+  // Create on add if missing (align with tool behavior)
+  if (!match && intent.kind === "add") {
+    match = await prisma.insumo.create({
+      data: {
+        name: intent.nameQuery.replace(/\b\w/g, (c) => c.toUpperCase()),
+        baseUnit: intent.unit,
+        category: "SECOS",
+        quantityOnHand: 0,
+        packSize: intent.quantity,
+      },
+    });
+  }
+
   if (!match) {
     return {
       applied: false,
-      summary: `No encontré el insumo «${intent.nameQuery}» en inventario. Revisá el catálogo o crealo primero.`,
+      summary: `No encontré el insumo «${intent.nameQuery}» en inventario.`,
       actions: { inventory: { intent, matched: false } },
     };
   }
@@ -100,6 +145,15 @@ async function applyInventoryFromText(text: string): Promise<{
   };
 }
 
+function parseConfirmCode(text: string): string | null {
+  const m = text.trim().match(/^CONFIRMAR\s+([A-Za-z0-9_-]+)\s*$/i);
+  // Ignore bare CONFIRMAR (handled by isBareConfirm → latest pending)
+  if (!m) return null;
+  const code = m[1];
+  if (!code || /^(confirmar|confirmo|sí|si)$/i.test(code)) return null;
+  return code;
+}
+
 export async function GET() {
   const thread = await getOrCreateThread();
   const messages = await prisma.chatMessage.findMany({
@@ -107,9 +161,17 @@ export async function GET() {
     orderBy: { createdAt: "asc" },
     include: { attachments: true },
   });
+  const pending = listPendingActions().map((p) => ({
+    code: p.code,
+    kind: p.kind,
+    summary: p.summary,
+    expiresAt: p.expiresAt,
+  }));
   return NextResponse.json({
     threadId: thread.id,
     openaiConfigured: isOpenAIConfigured(),
+    confirmSecretConfigured: Boolean(getConfirmSecret()),
+    pending,
     messages,
   });
 }
@@ -154,6 +216,12 @@ export async function POST(req: NextRequest) {
   } else {
     const body = await req.json();
     text = String(body.message ?? "").trim();
+    // Widget cancel: { action: "cancel_pending", code?: "ABC123" }
+    if (body.action === "cancel_pending") {
+      text = body.code
+        ? `CANCELAR ${String(body.code).toUpperCase()}`
+        : "CANCELAR";
+    }
   }
 
   if (!text && savedAttachments.length === 0) {
@@ -164,10 +232,6 @@ export async function POST(req: NextRequest) {
   const userContent =
     text ||
     `(Adjunto: ${savedAttachments.map((a) => a.filename).join(", ")})`;
-
-  const inventoryResult = text
-    ? await applyInventoryFromText(text)
-    : { applied: false, summary: null, actions: null };
 
   const userMsg = await prisma.chatMessage.create({
     data: {
@@ -181,6 +245,154 @@ export async function POST(req: NextRequest) {
     include: { attachments: true },
   });
 
+  // —— Cancel gate (widget «Cancelar») ——
+  const cancelCode = text ? parseCancelCode(text) : null;
+  const bareCancel = text ? isBareCancel(text) || /^CANCELAR\s*$/i.test(text.trim()) : false;
+  if (cancelCode || bareCancel) {
+    const cancelled = cancelCode
+      ? cancelPendingByCode(cancelCode)
+      : (() => {
+          const latest = peekLatestPending();
+          return latest ? cancelPendingByCode(latest.code) : null;
+        })();
+    const assistantContent = cancelled
+      ? `Cancelé la acción pendiente «${cancelled.summary}» (código ${cancelled.code}). No se cambió nada.`
+      : "No había ninguna acción pendiente para cancelar.";
+    const assistantMsg = await prisma.chatMessage.create({
+      data: {
+        threadId: thread.id,
+        role: "ASSISTANT",
+        content: assistantContent,
+        actionsJson: JSON.stringify({
+          cancelled: Boolean(cancelled),
+          code: cancelled?.code || null,
+        }),
+      },
+    });
+    return NextResponse.json({
+      stub: false,
+      userMessage: userMsg,
+      assistantMessage: assistantMsg,
+      widgets: [],
+    });
+  }
+
+  // —— Fast-path: destructive intents staged server-side (never trust the model alone) ——
+  if (text && !parseConfirmCode(text) && !isBareConfirm(text)) {
+    const lower = text.toLowerCase();
+    const clearAll =
+      /elimin[ae].*todos?\s+los\s+insumos|borr[ae].*todos?\s+los\s+insumos|vaciar?\s+(el\s+)?inventario|clear\s+all\s+inventory/.test(
+        lower
+      );
+    const delInsumo = lower.match(
+      /(?:elimin[ae]|borr[ae])\s+(?:el\s+)?insumo\s+(.+)$/i
+    );
+    if (clearAll) {
+      const staged = await executeAssistantTool("inventory_clear_all", "{}");
+      const widgets = widgetsFromToolResults([staged]);
+      const assistantMsg = await prisma.chatMessage.create({
+        data: {
+          threadId: thread.id,
+          role: "ASSISTANT",
+          content: staged.summary,
+          actionsJson: JSON.stringify({
+            toolResults: [staged],
+            staged: true,
+            widgets,
+          }),
+        },
+      });
+      return NextResponse.json({
+        stub: false,
+        userMessage: userMsg,
+        assistantMessage: assistantMsg,
+        toolResults: [staged],
+        widgets,
+      });
+    }
+    if (delInsumo?.[1]) {
+      const staged = await executeAssistantTool(
+        "inventory_delete",
+        JSON.stringify({ name: delInsumo[1].trim() })
+      );
+      const widgets = widgetsFromToolResults([staged]);
+      const assistantMsg = await prisma.chatMessage.create({
+        data: {
+          threadId: thread.id,
+          role: "ASSISTANT",
+          content: staged.summary,
+          actionsJson: JSON.stringify({
+            toolResults: [staged],
+            staged: true,
+            widgets,
+          }),
+        },
+      });
+      return NextResponse.json({
+        stub: false,
+        userMessage: userMsg,
+        assistantMessage: assistantMsg,
+        toolResults: [staged],
+        widgets,
+      });
+    }
+  }
+
+  // —— Confirmation gate (destructive actions) ——
+  // Accept: CONFIRMAR <código> | bare CONFIRMAR/confirmo | ASSISTANT_CONFIRM_SECRET
+  const confirmCode = text ? parseConfirmCode(text) : null;
+  const bareConfirm = text ? isBareConfirm(text) : false;
+  if (confirmCode || bareConfirm || (text && matchesConfirmSecret(text))) {
+    let pending = confirmCode ? takePendingByCode(confirmCode) : null;
+    if (!pending && (bareConfirm || (text && matchesConfirmSecret(text)))) {
+      pending = takeLatestPending();
+    }
+
+    if (!pending) {
+      const hint = peekLatestPending();
+      const assistantMsg = await prisma.chatMessage.create({
+        data: {
+          threadId: thread.id,
+          role: "ASSISTANT",
+          content: hint
+            ? `Todavía hay una acción pendiente: ${hint.summary}. Respondé: CONFIRMAR ${hint.code}`
+            : "No hay una acción pendiente (o expiró a los 5 minutos). Pedí de nuevo la acción destructiva.",
+          actionsJson: JSON.stringify({ confirm: "expired_or_missing" }),
+        },
+      });
+      return NextResponse.json({
+        stub: false,
+        userMessage: userMsg,
+        assistantMessage: assistantMsg,
+      });
+    }
+
+    const result = await executeConfirmedAction(pending.kind, pending.payload);
+    const assistantMsg = await prisma.chatMessage.create({
+      data: {
+        threadId: thread.id,
+        role: "ASSISTANT",
+        content: result.summary,
+        actionsJson: JSON.stringify({
+          confirmed: true,
+          kind: pending.kind,
+          ok: result.ok,
+          code: pending.code,
+        }),
+      },
+    });
+    await prisma.chatThread.update({
+      where: { id: thread.id },
+      data: { updatedAt: new Date() },
+    });
+    return NextResponse.json({
+      stub: false,
+      userMessage: userMsg,
+      assistantMessage: assistantMsg,
+      confirmed: result,
+    });
+  }
+
   const history = await prisma.chatMessage.findMany({
     where: { threadId: thread.id },
     orderBy: { createdAt: "asc" },
@@ -192,37 +404,54 @@ export async function POST(req: NextRequest) {
     take: 15,
     orderBy: { updatedAt: "desc" },
   });
-  const recetas = await prisma.receta.findMany({ take: 10, select: { name: true } });
+  const recetas = await prisma.receta.findMany({
+    take: 10,
+    select: { name: true },
+  });
   const insumos = await prisma.insumo.findMany({
-    take: 20,
+    take: 25,
     orderBy: { name: "asc" },
-    select: { name: true, quantityOnHand: true, baseUnit: true, minQty: true },
+    select: {
+      name: true,
+      quantityOnHand: true,
+      baseUnit: true,
+      minQty: true,
+      category: true,
+    },
   });
 
-  const systemExtra = `Contexto operativo Crunchadmin:
-Pendientes abiertos: ${pendientes.map((p) => `[${p.prioridad}] ${p.title} (${p.categoria})`).join("; ") || "ninguno"}
-Recetas: ${recetas.map((r) => r.name).join(", ") || "ninguna"}
-Inventario: ${insumos.map((i) => `${i.name}=${i.quantityOnHand}${i.baseUnit}`).join("; ") || "vacío"}
-${inventoryResult.summary ? `Acción de inventario ya aplicada: ${inventoryResult.summary}` : ""}`;
+  const systemExtra = `Contexto operativo Crunchadmin (resumen; para ficha completa usá tools):
+Pendientes abiertos: ${pendientes.map((p) => `[${p.prioridad}] ${p.title} (${p.categoria}/${p.zone})`).join("; ") || "ninguno"}
+Recetas (nombres): ${recetas.map((r) => r.name).join(", ") || "ninguna"} — ingredientes vía receta_get
+Inventario (muestra): ${insumos.map((i) => `${i.name}=${i.quantityOnHand}${i.baseUnit}`).join("; ") || "vacío"} — catálogo completo vía inventory_list`;
 
   let assistantContent: string;
   let stub = false;
+  let toolResults: unknown[] = [];
+  let legacyInventory: unknown = null;
 
-  if (inventoryResult.applied && inventoryResult.summary && !isOpenAIConfigured()) {
+  if (!isOpenAIConfigured()) {
+    // Offline: regex stock only
+    const inventoryResult = text
+      ? await applyInventoryFromText(text)
+      : { applied: false, summary: null, actions: null };
+    legacyInventory = inventoryResult.actions;
     stub = true;
-    assistantContent = `${inventoryResult.summary}\n\n(Modo stub sin OPENAI_API_KEY — el cambio de stock ya quedó registrado.)`;
+    assistantContent = inventoryResult.summary
+      ? `${inventoryResult.summary}\n\n(Modo stub sin OPENAI_API_KEY — solo frases de stock. Con API key uso herramientas completas.)`
+      : "Asistente en modo stub (sin OPENAI_API_KEY). Configurá la clave para controlar inventario, pendientes y más por voz/texto.";
   } else {
     const messages = [
       {
         role: "system" as const,
-        content:
-          "Eres el asistente de Crunchadmin. Responde en español. Si hubo una actualización de inventario, confirmala brevemente. " +
-          systemExtra,
+        content: `${SYSTEM_PROMPT}\n\n${systemExtra}`,
       },
       ...history
         .filter((m) => m.role !== "SYSTEM")
         .map((m) => ({
-          role: (m.role === "USER" ? "user" : "assistant") as "user" | "assistant",
+          role: (m.role === "USER" ? "user" : "assistant") as
+            | "user"
+            | "assistant",
           content: m.content,
         })),
     ];
@@ -230,15 +459,49 @@ ${inventoryResult.summary ? `Acción de inventario ya aplicada: ${inventoryResul
     const result = await chatCompletion({ messages, imageDataUrls });
     stub = result.stub;
     assistantContent = result.content;
-    if (inventoryResult.summary && stub && !inventoryResult.applied) {
-      assistantContent = `${inventoryResult.summary}\n\n${assistantContent}`;
-    } else if (inventoryResult.summary && stub) {
-      // already handled above when applied
-    } else if (inventoryResult.summary && !assistantContent.includes(inventoryResult.summary.slice(0, 20))) {
-      assistantContent = `${inventoryResult.summary}\n\n${assistantContent}`;
+    toolResults = result.toolResults || [];
+
+    // Guard: model must never claim a destructive mutation without a tool result
+    const claimedDone =
+      /elimin[eé].*insumos|inventario vaciad|borr[eé].*todos|ya (lo )?elimin/i.test(
+        assistantContent
+      );
+    const toolsRan = Array.isArray(toolResults) && toolResults.length > 0;
+    if (claimedDone && !toolsRan) {
+      const pendingHint = peekLatestPending();
+      assistantContent = pendingHint
+        ? `Todavía no borré nada. Hay una acción pendiente (${pendingHint.summary}). Para ejecutarla de verdad respondé exactamente: CONFIRMAR ${pendingHint.code} (también vale solo «CONFIRMAR»).`
+        : "Todavía no borré nada: no corrí ninguna herramienta. Pedí de nuevo la acción (ej. «eliminá todos los insumos») y después confirmá con el código.";
+    }
+
+    // Guard: recipe asks must surface the full ficha via receta_get
+    const recipeAsk =
+      /(receta|ficha t[eé]cnica|ingredientes?\s+de)\b/i.test(text) &&
+      !/\b(crear|nueva|agreg[aá]|borr|elimin)/i.test(text);
+    const gotReceta = (toolResults as { tool?: string; name?: string; ok?: boolean }[]).some(
+      (t) => (t.tool || t.name) === "receta_get" && t.ok
+    );
+    if (recipeAsk && !gotReceta) {
+      const nameGuess =
+        text.match(
+          /(?:receta|ficha)\s+(?:de\s+|completa\s+de\s+)?[«"']?([^«"'?.!\n]+)[»"']?/i
+        )?.[1]?.trim() ||
+        text.match(/mayonesa\s+casa|marinado|papas|burger/i)?.[0] ||
+        "";
+      if (nameGuess) {
+        const fetched = await executeAssistantTool(
+          "receta_get",
+          JSON.stringify({ name: nameGuess })
+        );
+        toolResults = [...(toolResults as unknown[]), fetched];
+        if (fetched.ok) {
+          assistantContent = fetched.summary;
+        }
+      }
     }
   }
 
+  const widgets = widgetsFromToolResults(toolResults as unknown[]);
   const assistantMsg = await prisma.chatMessage.create({
     data: {
       threadId: thread.id,
@@ -246,7 +509,9 @@ ${inventoryResult.summary ? `Acción de inventario ya aplicada: ${inventoryResul
       content: assistantContent,
       actionsJson: JSON.stringify({
         stub,
-        ...(inventoryResult.actions || {}),
+        toolResults,
+        widgets,
+        ...(legacyInventory ? { inventory: legacyInventory } : {}),
       }),
     },
   });
@@ -260,6 +525,7 @@ ${inventoryResult.summary ? `Acción de inventario ya aplicada: ${inventoryResul
     stub,
     userMessage: userMsg,
     assistantMessage: assistantMsg,
-    inventory: inventoryResult.actions,
+    toolResults,
+    widgets,
   });
 }
