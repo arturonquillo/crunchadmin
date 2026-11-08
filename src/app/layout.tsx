@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Fraunces, Manrope } from "next/font/google";
-import { AppNav } from "@/components/AppNav";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages, getTranslations } from "next-intl/server";
+import { AppChrome } from "@/components/AppChrome";
 import "./globals.css";
 
 const display = Fraunces({
@@ -15,22 +17,28 @@ const body = Manrope({
   weight: ["400", "500", "600", "700"],
 });
 
-export const metadata: Metadata = {
-  title: "Crunchadmin",
-  description:
-    "Centro operativo del restaurante: pendientes, recetas con escalado, menú y asistente.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Meta");
+  return {
+    title: t("title"),
+    description: t("description"),
+  };
+}
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
+  const messages = await getMessages();
+
   return (
-    <html lang="es">
+    <html lang={locale}>
       <body className={`${display.variable} ${body.variable} antialiased`}>
-        <AppNav />
-        <main className="shell">{children}</main>
+        <NextIntlClientProvider messages={messages}>
+          <AppChrome>{children}</AppChrome>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

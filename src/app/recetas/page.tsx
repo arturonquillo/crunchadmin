@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
+import { FormSheet } from "@/components/FormSheet";
 
 type Receta = {
   id: string;
@@ -14,7 +16,9 @@ type Receta = {
 };
 
 export default function RecetasPage() {
+  const t = useTranslations("Recetas");
   const [recetas, setRecetas] = useState<Receta[]>([]);
+  const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [yieldQty, setYieldQty] = useState("1");
   const [yieldUnit, setYieldUnit] = useState("kg");
@@ -68,32 +72,76 @@ export default function RecetasPage() {
       return;
     }
     setName("");
+    setShowForm(false);
     await load();
   }
 
   return (
-    <>
-      <h1 className="section-title">Recetas</h1>
-      <p className="section-sub">
-        Fichas técnicas con versiones. Abre una receta para escalar desde
-        cualquier ingrediente base.
-      </p>
+    <div className="shell">
+      <div className="page-head">
+        <div>
+          <h1 className="section-title">{t("title")}</h1>
+          <p className="section-sub" style={{ marginBottom: 0 }}>{t("subtitle")}</p>
+        </div>
+        <div className="page-head-actions">
+          <button type="button" className="btn" onClick={() => setShowForm(true)}>
+            {t("new")}
+          </button>
+        </div>
+      </div>
 
-      <section className="panel">
-        <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Nueva receta</h2>
+      <section className="panel" style={{ marginTop: "0.85rem" }}>
+        {recetas.length === 0 ? (
+          <p className="empty">
+            {t("empty")}{" "}
+            <button type="button" className="btn ghost" onClick={() => setShowForm(true)}>
+              {t("createFirst")}
+            </button>
+          </p>
+        ) : (
+          <ul className="list-cards">
+            {recetas.map((r) => (
+              <li key={r.id} className="list-card">
+                <div className="list-card-main">
+                  <strong>{r.name}</strong>
+                  <span className="list-card-meta">
+                    {r.yieldQty != null
+                      ? `${r.yieldQty} ${r.yieldUnit ?? ""}${r.yieldLabel ? ` · ${r.yieldLabel}` : ""}`
+                      : t("noYield")}
+                    {" · "}
+                    {t("versionsShort", { count: r.versions.length })}
+                  </span>
+                  {r.notes && <span className="list-card-note">{r.notes}</span>}
+                </div>
+                <Link className="btn secondary" href={`/recetas/${r.id}`}>
+                  {t("open")}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <FormSheet
+        open={showForm}
+        title={t("newTitle")}
+        kicker={t("sheetKicker")}
+        onClose={() => setShowForm(false)}
+      >
         <form onSubmit={onCreate}>
           <div className="form-grid">
             <div className="field" style={{ gridColumn: "1 / -1" }}>
-              <label htmlFor="rname">Nombre</label>
+              <label htmlFor="rname">{t("fieldName")}</label>
               <input
                 id="rname"
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                autoFocus
               />
             </div>
             <div className="field">
-              <label htmlFor="yq">Rendimiento</label>
+              <label htmlFor="yq">{t("fieldYield")}</label>
               <input
                 id="yq"
                 type="number"
@@ -103,7 +151,7 @@ export default function RecetasPage() {
               />
             </div>
             <div className="field">
-              <label htmlFor="yu">Unidad</label>
+              <label htmlFor="yu">{t("fieldUnit")}</label>
               <input
                 id="yu"
                 value={yieldUnit}
@@ -111,18 +159,16 @@ export default function RecetasPage() {
               />
             </div>
             <div className="field">
-              <label htmlFor="yl">Etiqueta yield</label>
+              <label htmlFor="yl">{t("fieldYieldLabel")}</label>
               <input
                 id="yl"
-                placeholder="mayonesa"
+                placeholder={t("yieldPlaceholder")}
                 value={yieldLabel}
                 onChange={(e) => setYieldLabel(e.target.value)}
               />
             </div>
             <div className="field" style={{ gridColumn: "1 / -1" }}>
-              <label htmlFor="lines">
-                Líneas (nombre,cantidad,unidad[,gusto])
-              </label>
+              <label htmlFor="lines">{t("fieldLines")}</label>
               <textarea
                 id="lines"
                 value={linesText}
@@ -131,60 +177,14 @@ export default function RecetasPage() {
               />
             </div>
           </div>
+          {error && <p className="error">{error}</p>}
           <div className="form-actions">
             <button className="btn" type="submit">
-              Crear receta
+              {t("create")}
             </button>
           </div>
         </form>
-        {error && (
-          <p style={{ color: "var(--danger)", marginTop: "0.75rem" }}>{error}</p>
-        )}
-      </section>
-
-      <section className="panel">
-        {recetas.length === 0 ? (
-          <p className="empty">Sin recetas aún.</p>
-        ) : (
-          <div className="table-wrap">
-            <table className="data">
-              <thead>
-                <tr>
-                  <th>Nombre</th>
-                  <th>Rendimiento</th>
-                  <th>Versiones</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {recetas.map((r) => (
-                  <tr key={r.id}>
-                    <td>
-                      <strong>{r.name}</strong>
-                      {r.notes && (
-                        <div style={{ color: "var(--muted)", fontSize: "0.85rem" }}>
-                          {r.notes}
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      {r.yieldQty != null
-                        ? `${r.yieldQty} ${r.yieldUnit ?? ""} ${r.yieldLabel ? `(${r.yieldLabel})` : ""}`
-                        : "—"}
-                    </td>
-                    <td>{r.versions.length}</td>
-                    <td>
-                      <Link className="btn secondary" href={`/recetas/${r.id}`}>
-                        Abrir / escalar
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-    </>
+      </FormSheet>
+    </div>
   );
 }
