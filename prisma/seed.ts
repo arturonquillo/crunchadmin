@@ -9,6 +9,9 @@ async function main() {
   await prisma.chatThread.deleteMany();
   await prisma.reminder.deleteMany();
   await prisma.pendienteAttachment.deleteMany();
+  await prisma.produccionLinea.deleteMany();
+  await prisma.produccion.deleteMany();
+  await prisma.inventoryMovement.deleteMany();
   await prisma.menuPlatformSpec.deleteMany();
   await prisma.menuItem.deleteMany();
   await prisma.recetaLinea.deleteMany();
@@ -27,21 +30,145 @@ async function main() {
 
   const insumos = await Promise.all(
     [
-      { name: "Aceite vegetal", baseUnit: "g", purchaseNotes: "Bidón 20 L" },
-      { name: "Yema de huevo", baseUnit: "g" },
-      { name: "Mostaza", baseUnit: "g" },
-      { name: "Vinagre blanco", baseUnit: "g" },
-      { name: "Sal", baseUnit: "g" },
-      { name: "Papa", baseUnit: "kg", purchaseNotes: "Mercado central" },
+      {
+        name: "Aceite vegetal",
+        category: "ACEITES",
+        baseUnit: "L",
+        quantityOnHand: 12,
+        packSize: 20,
+        minQty: 4,
+        reorderHint: "Pedir 1 bidón de 20 L al bajar de 20%",
+        purchaseNotes: "Bidón 20 L",
+        fifoNote: "Rotar bidones: abrir el más antiguo primero",
+      },
+      {
+        name: "Yema de huevo",
+        category: "LACTEOS",
+        baseUnit: "kg",
+        quantityOnHand: 2.5,
+        packSize: 5,
+        minQty: 0.5,
+        reorderHint: "Bandeja 5 kg",
+        fifoNote: "Cámara: etiqueta fecha; usar primero lo más viejo",
+      },
+      {
+        name: "Mostaza",
+        category: "SECOS",
+        baseUnit: "kg",
+        quantityOnHand: 1.2,
+        packSize: 2,
+        minQty: 0.3,
+        reorderHint: "Balde 2 kg",
+      },
+      {
+        name: "Vinagre blanco",
+        category: "SECOS",
+        baseUnit: "L",
+        quantityOnHand: 3,
+        packSize: 5,
+        minQty: 1,
+        reorderHint: "Garrafa 5 L",
+      },
+      {
+        name: "Sal",
+        category: "SECOS",
+        baseUnit: "kg",
+        quantityOnHand: 5,
+        packSize: 25,
+        minQty: 1,
+        reorderHint: "Saco 25 kg",
+      },
+      {
+        name: "Papa",
+        category: "FRESCOS",
+        baseUnit: "kg",
+        quantityOnHand: 25,
+        packSize: 25,
+        minQty: 8,
+        purchaseNotes: "Mercado central",
+        reorderHint: "Saco 25 kg",
+        fifoNote: "Sacos nuevos detrás; usar los de adelante",
+      },
+      {
+        name: "Frango",
+        category: "CARNES",
+        baseUnit: "kg",
+        quantityOnHand: 18,
+        packSize: 10,
+        minQty: 5,
+        reorderHint: "Caja 10 kg — reponer al llegar a 5 kg",
+        fifoNote: "FIFO en cámara: fecha de recepción visible",
+      },
+      {
+        name: "Ajo",
+        category: "FRESCOS",
+        baseUnit: "kg",
+        quantityOnHand: 1.5,
+        packSize: 5,
+        minQty: 0.4,
+        reorderHint: "Malla 5 kg",
+      },
+      {
+        name: "Limón",
+        category: "FRESCOS",
+        baseUnit: "kg",
+        quantityOnHand: 2,
+        packSize: 10,
+        minQty: 0.5,
+        reorderHint: "Cajón 10 kg",
+      },
+      {
+        name: "Pimentón",
+        category: "ESPECIAS",
+        baseUnit: "kg",
+        quantityOnHand: 0.4,
+        packSize: 1,
+        minQty: 0.1,
+        reorderHint: "Frasco 1 kg",
+      },
+      {
+        name: "Extracto de vainilla",
+        category: "ESPECIAS",
+        baseUnit: "kg",
+        quantityOnHand: 18,
+        packSize: 25,
+        minQty: 5,
+        reorderHint: "Pack de compra 25 kg = 100% · reponer bajo 20%",
+        purchaseNotes: "Envase industrial 25 kg",
+        fifoNote: "Mantener cerrado; anotar lote al abrir",
+      },
+      {
+        name: "Manteca",
+        category: "LACTEOS",
+        baseUnit: "kg",
+        quantityOnHand: 3,
+        packSize: 5,
+        minQty: 1,
+        reorderHint: "Caja 5 kg",
+        fifoNote: "FIFO en cámara fría",
+      },
     ].map((d) => prisma.insumo.create({ data: d }))
   );
 
   const byName = Object.fromEntries(insumos.map((i) => [i.name, i]));
 
+  for (const item of insumos) {
+    if (item.quantityOnHand > 0) {
+      await prisma.inventoryMovement.create({
+        data: {
+          insumoId: item.id,
+          kind: "AJUSTE",
+          delta: item.quantityOnHand,
+          note: "Stock inicial seed",
+        },
+      });
+    }
+  }
+
   const mayo = await prisma.receta.create({
     data: {
       name: "Mayonesa casa",
-      notes: "Ficha técnica base — 1 kg. Usar el escalado para batches (ej. 1,8 kg).",
+      notes: "Ficha técnica base — 1 kg. Usar el escalado / producción para batches.",
       yieldQty: 1,
       yieldUnit: "kg",
       yieldLabel: "mayonesa",
@@ -60,36 +187,36 @@ async function main() {
         create: [
           {
             name: "Aceite",
-            quantity: 700,
-            unit: "g",
+            quantity: 0.7,
+            unit: "L",
             sortOrder: 1,
             insumoId: byName["Aceite vegetal"].id,
           },
           {
             name: "Yema de huevo",
-            quantity: 150,
-            unit: "g",
+            quantity: 0.15,
+            unit: "kg",
             sortOrder: 2,
             insumoId: byName["Yema de huevo"].id,
           },
           {
             name: "Mostaza",
-            quantity: 50,
-            unit: "g",
+            quantity: 0.05,
+            unit: "kg",
             sortOrder: 3,
             insumoId: byName["Mostaza"].id,
           },
           {
             name: "Vinagre",
-            quantity: 80,
-            unit: "g",
+            quantity: 0.08,
+            unit: "L",
             sortOrder: 4,
             insumoId: byName["Vinagre blanco"].id,
           },
           {
             name: "Sal",
-            quantity: 20,
-            unit: "g",
+            quantity: 0.02,
+            unit: "kg",
             sortOrder: 5,
             insumoId: byName["Sal"].id,
           },
@@ -111,6 +238,78 @@ async function main() {
     data: { currentVersionId: v1.id },
   });
 
+  const marinado = await prisma.receta.create({
+    data: {
+      name: "Marinado de frango",
+      notes: "Ficha maestra 1 kg de frango marinado. Producir p.ej. 5 kg desde Producción.",
+      yieldQty: 1,
+      yieldUnit: "kg",
+      yieldLabel: "frango marinado",
+      userId: user.id,
+    },
+  });
+
+  const marinadoV1 = await prisma.recetaVersion.create({
+    data: {
+      recetaId: marinado.id,
+      number: 1,
+      label: "v1",
+      changelog: "Ficha demo producción 1 kg → 5 kg",
+      authorId: user.id,
+      lines: {
+        create: [
+          {
+            name: "Frango",
+            quantity: 1,
+            unit: "kg",
+            sortOrder: 1,
+            insumoId: byName["Frango"].id,
+          },
+          {
+            name: "Aceite",
+            quantity: 0.04,
+            unit: "L",
+            sortOrder: 2,
+            insumoId: byName["Aceite vegetal"].id,
+          },
+          {
+            name: "Ajo",
+            quantity: 0.02,
+            unit: "kg",
+            sortOrder: 3,
+            insumoId: byName["Ajo"].id,
+          },
+          {
+            name: "Limón",
+            quantity: 0.03,
+            unit: "kg",
+            sortOrder: 4,
+            insumoId: byName["Limón"].id,
+          },
+          {
+            name: "Pimentón",
+            quantity: 0.01,
+            unit: "kg",
+            sortOrder: 5,
+            insumoId: byName["Pimentón"].id,
+          },
+          {
+            name: "Sal",
+            quantity: 0.015,
+            unit: "kg",
+            sortOrder: 6,
+            insumoId: byName["Sal"].id,
+          },
+        ],
+      },
+    },
+  });
+
+  await prisma.receta.update({
+    where: { id: marinado.id },
+    data: { currentVersionId: marinadoV1.id },
+  });
+
   const papas = await prisma.receta.create({
     data: {
       name: "Papas fritas crunch",
@@ -129,13 +328,25 @@ async function main() {
             create: [
               {
                 name: "Papa",
-                quantity: 800,
-                unit: "g",
+                quantity: 0.8,
+                unit: "kg",
                 sortOrder: 1,
                 insumoId: byName["Papa"].id,
               },
-              { name: "Aceite para freír", quantity: 200, unit: "ml", sortOrder: 2 },
-              { name: "Sal", quantity: 8, unit: "g", sortOrder: 3 },
+              {
+                name: "Aceite para freír",
+                quantity: 0.2,
+                unit: "L",
+                sortOrder: 2,
+                insumoId: byName["Aceite vegetal"].id,
+              },
+              {
+                name: "Sal",
+                quantity: 0.008,
+                unit: "kg",
+                sortOrder: 3,
+                insumoId: byName["Sal"].id,
+              },
             ],
           },
         },
@@ -301,7 +512,7 @@ async function main() {
           {
             role: "SYSTEM",
             content:
-              "Eres el asistente de Crunchadmin. Ayudas con pendientes, recetas (escalado) y menú. Responde en español.",
+              "Eres el asistente de Crunchadmin. Ayudas con pendientes, inventario, producción, recetas (escalado) y menú. Responde en español.",
           },
         ],
       },
@@ -309,7 +520,8 @@ async function main() {
   });
 
   console.log("Seed OK");
-  console.log("  Receta demo:", mayo.name, "→ escala 1 kg a 1,8 kg");
+  console.log("  Receta demo mayo:", mayo.name);
+  console.log("  Receta demo producción:", marinado.name, "→ 5 kg");
   console.log("  Menú item:", menuMayo.name);
   console.log("  User:", user.email);
 }

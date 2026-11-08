@@ -41,18 +41,35 @@ export async function chatCompletion(params: {
         ]
       : (lastUser?.content ?? "");
 
-  const completion = await client.chat.completions.create({
-    model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-    messages: [
-      ...prior,
-      { role: "user", content: userContent },
-    ],
-  });
+  try {
+    const completion = await client.chat.completions.create({
+      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+      messages: [
+        ...prior,
+        { role: "user", content: userContent },
+      ],
+    });
 
-  return {
-    stub: false,
-    content:
-      completion.choices[0]?.message?.content?.trim() ||
-      "(Sin respuesta del modelo)",
-  };
+    return {
+      stub: false,
+      content:
+        completion.choices[0]?.message?.content?.trim() ||
+        "(Sin respuesta del modelo)",
+    };
+  } catch (err) {
+    const status = (err as { status?: number })?.status;
+    const code = (err as { code?: string })?.code;
+    if (status === 429 || code === "insufficient_quota" || code === "credit_balance_exhausted") {
+      return {
+        stub: false,
+        content:
+          "OpenAI está configurado, pero la cuenta no tiene créditos disponibles (cuota/billing). Agregá crédito en platform.openai.com → Settings → Billing y reintentá.",
+      };
+    }
+    const msg = err instanceof Error ? err.message : "Error desconocido";
+    return {
+      stub: false,
+      content: `No pude completar la respuesta con OpenAI (${status ?? "error"}). Detalle: ${msg.slice(0, 180)}`,
+    };
+  }
 }
