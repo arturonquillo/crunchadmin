@@ -89,7 +89,7 @@ export default function MenuPage() {
                     <td>
                       <strong>{item.name}</strong>
                       {item.description && (
-                        <div style={{ color: "var(--muted)", fontSize: "0.85rem" }}>
+                        <div style={{ color: "var(--muted)", fontSize: "var(--text-sm)" }}>
                           {item.description}
                         </div>
                       )}
@@ -125,7 +125,7 @@ export default function MenuPage() {
                             <div
                               style={{
                                 color: "var(--muted)",
-                                fontSize: "0.8rem",
+                                fontSize: "var(--text-sm)",
                                 marginTop: 4,
                               }}
                             >
