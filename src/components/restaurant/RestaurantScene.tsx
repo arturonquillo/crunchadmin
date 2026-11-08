@@ -149,6 +149,7 @@ function SceneInner({ pendientes, focusedZone, onFocusZone }: Props) {
           zone={zone}
           count={counts.get(zone) || 0}
           active={focusedZone === zone}
+          sheetOpen={Boolean(focusedZone)}
           onSelect={selectZone}
         />
       ))}
