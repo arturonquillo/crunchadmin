@@ -1844,3 +1844,175 @@ tr.row-warn td {
 .app-chrome.is-home .home-3d {
   min-height: calc(100dvh - 3.2rem - 4.6rem);
 }
+
+.list-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.list-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0.15rem;
+  border-bottom: 1px solid rgba(26, 34, 24, 0.08);
+}
+
+.list-card:last-child {
+  border-bottom: none;
+}
+
+.list-card-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.list-card-meta {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.list-card-note {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.list-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.25rem;
+}
+
+.pendientes-card-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+  margin-top: 0.45rem;
+}
+
+.pendientes-card-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.pendientes-card-controls select {
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--ink);
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #fffef9;
+  padding: 0.35rem 0.45rem;
+}
+
+/* —— List page toolbar + create form sheet —— */
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.page-head .section-title {
+  margin-bottom: 0.25rem;
+}
+
+.page-head-actions {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.form-sheet-root {
+  position: fixed;
+  inset: 0;
+  z-index: 92;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.form-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(18, 24, 16, 0.5);
+  backdrop-filter: blur(2px);
+}
+
+.form-sheet {
+  position: relative;
+  z-index: 1;
+  width: min(560px, 100%);
+  max-height: min(88dvh, 820px);
+  overflow: auto;
+  background: linear-gradient(180deg, #f7f3e8 0%, #efe8d8 100%);
+  border-radius: 18px 18px 0 0;
+  border: 1px solid rgba(26, 34, 24, 0.1);
+  border-bottom: none;
+  padding: 0.45rem 1rem calc(1.1rem + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -16px 40px rgba(18, 24, 16, 0.22);
+  animation: rise 260ms ease-out both;
+  -webkit-overflow-scrolling: touch;
+}
+
+.form-sheet-handle {
+  width: 2.4rem;
+  height: 0.28rem;
+  border-radius: 99px;
+  background: rgba(26, 34, 24, 0.18);
+  margin: 0.15rem auto 0.55rem;
+}
+
+.form-sheet-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.form-sheet-kicker {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.form-sheet-head h2 {
+  margin: 0.1rem 0 0;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+}
+
+.form-sheet-body {
+  padding-bottom: 0.25rem;
+}
+
+@media (min-width: 720px) {
+  .form-sheet-root {
+    align-items: center;
+    padding: 1.25rem;
+  }
+  .form-sheet {
+    border-radius: 18px;
+    border-bottom: 1px solid rgba(26, 34, 24, 0.1);
+    max-height: min(80dvh, 760px);
+  }
+  .form-sheet-handle {
+    display: none;
+  }
+}

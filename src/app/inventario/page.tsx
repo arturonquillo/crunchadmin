@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormSheet } from "@/components/FormSheet";
 import {
   INSUMO_CATEGORIA_LABEL,
   INSUMO_CATEGORIAS,
@@ -230,8 +231,8 @@ export default function InventarioPage() {
           <Link href="/recetas" className="btn ghost">
             Fichas técnicas →
           </Link>
-          <button type="button" className="btn" onClick={() => setShowForm((v) => !v)}>
-            {showForm ? "Cerrar formulario" : "Nuevo insumo"}
+          <button type="button" className="btn" onClick={() => setShowForm(true)}>
+            + Nuevo
           </button>
         </div>
       </header>
@@ -305,114 +306,117 @@ export default function InventarioPage() {
         })}
       </div>
 
-      {showForm && (
-        <section className="panel" style={{ marginTop: "0.85rem" }}>
-          <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Nuevo insumo</h2>
-          <form onSubmit={onCreate}>
-            <div className="form-grid">
-              <div className="field" style={{ gridColumn: "1 / -1" }}>
-                <label htmlFor="inv-name">Nombre</label>
-                <input
-                  id="inv-name"
-                  required
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="Ej. Extracto de vainilla"
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="inv-cat">Categoría</label>
-                <select
-                  id="inv-cat"
-                  value={form.category}
-                  onChange={(e) =>
-                    setForm({ ...form, category: e.target.value as InsumoCategoria })
-                  }
-                >
-                  {INSUMO_CATEGORIAS.map((c) => (
-                    <option key={c} value={c}>
-                      {INSUMO_CATEGORIA_LABEL[c]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="field">
-                <label htmlFor="inv-unit">Unidad</label>
-                <select
-                  id="inv-unit"
-                  value={form.baseUnit}
-                  onChange={(e) => setForm({ ...form, baseUnit: e.target.value })}
-                >
-                  {["kg", "g", "L", "ml", "ud"].map((u) => (
-                    <option key={u} value={u}>
-                      {u}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="field">
-                <label htmlFor="inv-qty">Cantidad actual</label>
-                <input
-                  id="inv-qty"
-                  type="number"
-                  step="any"
-                  min="0"
-                  value={form.quantityOnHand}
-                  onChange={(e) => setForm({ ...form, quantityOnHand: e.target.value })}
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="inv-pack">Tamaño de compra (pack = 100%)</label>
-                <input
-                  id="inv-pack"
-                  type="number"
-                  step="any"
-                  min="0"
-                  value={form.packSize}
-                  onChange={(e) => setForm({ ...form, packSize: e.target.value })}
-                  placeholder="Ej. 25"
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="inv-min">Punto de reorden (mín.)</label>
-                <input
-                  id="inv-min"
-                  type="number"
-                  step="any"
-                  min="0"
-                  value={form.minQty}
-                  onChange={(e) => setForm({ ...form, minQty: e.target.value })}
-                  placeholder="Opcional"
-                />
-              </div>
-              <div className="field" style={{ gridColumn: "1 / -1" }}>
-                <label htmlFor="inv-hint">Hint de compra</label>
-                <input
-                  id="inv-hint"
-                  value={form.reorderHint}
-                  onChange={(e) => setForm({ ...form, reorderHint: e.target.value })}
-                  placeholder="Ej. Pack 25 kg · pedir bajo 20%"
-                />
-              </div>
-              <div className="field" style={{ gridColumn: "1 / -1" }}>
-                <label htmlFor="inv-fifo">Nota FIFO / rotación</label>
-                <input
-                  id="inv-fifo"
-                  value={form.fifoNote}
-                  onChange={(e) => setForm({ ...form, fifoNote: e.target.value })}
-                  placeholder="Ej. Sacos nuevos detrás"
-                />
-              </div>
+      <FormSheet
+        open={showForm}
+        title="Nuevo insumo"
+        kicker="Inventario"
+        onClose={() => setShowForm(false)}
+      >
+        <form onSubmit={onCreate}>
+          <div className="form-grid">
+            <div className="field" style={{ gridColumn: "1 / -1" }}>
+              <label htmlFor="inv-name">Nombre</label>
+              <input
+                id="inv-name"
+                required
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="Ej. Extracto de vainilla"
+                autoFocus
+              />
             </div>
-            {error && <p className="error">{error}</p>}
-            <div className="form-actions">
-              <button className="btn" type="submit">
-                Agregar al catálogo
-              </button>
+            <div className="field">
+              <label htmlFor="inv-cat">Categoría</label>
+              <select
+                id="inv-cat"
+                value={form.category}
+                onChange={(e) =>
+                  setForm({ ...form, category: e.target.value as InsumoCategoria })
+                }
+              >
+                {INSUMO_CATEGORIAS.map((c) => (
+                  <option key={c} value={c}>
+                    {INSUMO_CATEGORIA_LABEL[c]}
+                  </option>
+                ))}
+              </select>
             </div>
-          </form>
-        </section>
-      )}
+            <div className="field">
+              <label htmlFor="inv-unit">Unidad</label>
+              <select
+                id="inv-unit"
+                value={form.baseUnit}
+                onChange={(e) => setForm({ ...form, baseUnit: e.target.value })}
+              >
+                {["kg", "g", "L", "ml", "ud"].map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="inv-qty">Cantidad actual</label>
+              <input
+                id="inv-qty"
+                type="number"
+                step="any"
+                min="0"
+                value={form.quantityOnHand}
+                onChange={(e) => setForm({ ...form, quantityOnHand: e.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="inv-pack">Tamaño de compra (pack = 100%)</label>
+              <input
+                id="inv-pack"
+                type="number"
+                step="any"
+                min="0"
+                value={form.packSize}
+                onChange={(e) => setForm({ ...form, packSize: e.target.value })}
+                placeholder="Ej. 25"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="inv-min">Punto de reorden (mín.)</label>
+              <input
+                id="inv-min"
+                type="number"
+                step="any"
+                min="0"
+                value={form.minQty}
+                onChange={(e) => setForm({ ...form, minQty: e.target.value })}
+                placeholder="Opcional"
+              />
+            </div>
+            <div className="field" style={{ gridColumn: "1 / -1" }}>
+              <label htmlFor="inv-hint">Hint de compra</label>
+              <input
+                id="inv-hint"
+                value={form.reorderHint}
+                onChange={(e) => setForm({ ...form, reorderHint: e.target.value })}
+                placeholder="Ej. Pack 25 kg · pedir bajo 20%"
+              />
+            </div>
+            <div className="field" style={{ gridColumn: "1 / -1" }}>
+              <label htmlFor="inv-fifo">Nota FIFO / rotación</label>
+              <input
+                id="inv-fifo"
+                value={form.fifoNote}
+                onChange={(e) => setForm({ ...form, fifoNote: e.target.value })}
+                placeholder="Ej. Sacos nuevos detrás"
+              />
+            </div>
+          </div>
+          {error && <p className="error">{error}</p>}
+          <div className="form-actions">
+            <button className="btn" type="submit">
+              Agregar al catálogo
+            </button>
+          </div>
+        </form>
+      </FormSheet>
 
       <section className="inv-stock" style={{ marginTop: "1rem" }}>
         {loading ? (

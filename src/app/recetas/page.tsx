@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
+import { FormSheet } from "@/components/FormSheet";
 
 type Receta = {
   id: string;
@@ -15,6 +16,7 @@ type Receta = {
 
 export default function RecetasPage() {
   const [recetas, setRecetas] = useState<Receta[]>([]);
+  const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [yieldQty, setYieldQty] = useState("1");
   const [yieldUnit, setYieldUnit] = useState("kg");
@@ -68,19 +70,64 @@ export default function RecetasPage() {
       return;
     }
     setName("");
+    setShowForm(false);
     await load();
   }
 
   return (
     <div className="shell">
-      <h1 className="section-title">Recetas</h1>
-      <p className="section-sub">
-        Fichas técnicas con versiones. Abre una receta para escalar desde
-        cualquier ingrediente base.
-      </p>
+      <div className="page-head">
+        <div>
+          <h1 className="section-title">Recetas</h1>
+          <p className="section-sub" style={{ marginBottom: 0 }}>
+            Fichas técnicas con versiones. Abrí una para escalar.
+          </p>
+        </div>
+        <div className="page-head-actions">
+          <button type="button" className="btn" onClick={() => setShowForm(true)}>
+            + Nueva
+          </button>
+        </div>
+      </div>
 
-      <section className="panel">
-        <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Nueva receta</h2>
+      <section className="panel" style={{ marginTop: "0.85rem" }}>
+        {recetas.length === 0 ? (
+          <p className="empty">
+            Sin recetas aún.{" "}
+            <button type="button" className="btn ghost" onClick={() => setShowForm(true)}>
+              Crear la primera
+            </button>
+          </p>
+        ) : (
+          <ul className="list-cards">
+            {recetas.map((r) => (
+              <li key={r.id} className="list-card">
+                <div className="list-card-main">
+                  <strong>{r.name}</strong>
+                  <span className="list-card-meta">
+                    {r.yieldQty != null
+                      ? `${r.yieldQty} ${r.yieldUnit ?? ""}${r.yieldLabel ? ` · ${r.yieldLabel}` : ""}`
+                      : "Sin rendimiento"}
+                    {" · "}
+                    {r.versions.length} vers.
+                  </span>
+                  {r.notes && <span className="list-card-note">{r.notes}</span>}
+                </div>
+                <Link className="btn secondary" href={`/recetas/${r.id}`}>
+                  Abrir
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <FormSheet
+        open={showForm}
+        title="Nueva receta"
+        kicker="Ficha técnica"
+        onClose={() => setShowForm(false)}
+      >
         <form onSubmit={onCreate}>
           <div className="form-grid">
             <div className="field" style={{ gridColumn: "1 / -1" }}>
@@ -90,6 +137,7 @@ export default function RecetasPage() {
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                autoFocus
               />
             </div>
             <div className="field">
@@ -120,9 +168,7 @@ export default function RecetasPage() {
               />
             </div>
             <div className="field" style={{ gridColumn: "1 / -1" }}>
-              <label htmlFor="lines">
-                Líneas (nombre,cantidad,unidad[,gusto])
-              </label>
+              <label htmlFor="lines">Líneas (nombre,cantidad,unidad[,gusto])</label>
               <textarea
                 id="lines"
                 value={linesText}
@@ -131,60 +177,14 @@ export default function RecetasPage() {
               />
             </div>
           </div>
+          {error && <p className="error">{error}</p>}
           <div className="form-actions">
             <button className="btn" type="submit">
               Crear receta
             </button>
           </div>
         </form>
-        {error && (
-          <p style={{ color: "var(--danger)", marginTop: "0.75rem" }}>{error}</p>
-        )}
-      </section>
-
-      <section className="panel">
-        {recetas.length === 0 ? (
-          <p className="empty">Sin recetas aún.</p>
-        ) : (
-          <div className="table-wrap">
-            <table className="data">
-              <thead>
-                <tr>
-                  <th>Nombre</th>
-                  <th>Rendimiento</th>
-                  <th>Versiones</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {recetas.map((r) => (
-                  <tr key={r.id}>
-                    <td>
-                      <strong>{r.name}</strong>
-                      {r.notes && (
-                        <div style={{ color: "var(--muted)", fontSize: "0.85rem" }}>
-                          {r.notes}
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      {r.yieldQty != null
-                        ? `${r.yieldQty} ${r.yieldUnit ?? ""} ${r.yieldLabel ? `(${r.yieldLabel})` : ""}`
-                        : "—"}
-                    </td>
-                    <td>{r.versions.length}</td>
-                    <td>
-                      <Link className="btn secondary" href={`/recetas/${r.id}`}>
-                        Abrir / escalar
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      </FormSheet>
     </div>
   );
 }
