@@ -22,18 +22,40 @@ model User {
   chatThreads    ChatThread[]
   reminders      Reminder[]
   recipeVersions RecetaVersion[]
+  producciones   Produccion[]
 }
 
 model Insumo {
-  id            String   @id @default(cuid())
-  name          String
-  baseUnit      String // g, kg, ml, L, ud
-  purchaseNotes String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             String   @id @default(cuid())
+  name           String
+  baseUnit       String // g, kg, ml, L, ud
+  /// Cantidad actual en stock (en baseUnit)
+  quantityOnHand Float    @default(0)
+  /// Umbral mínimo opcional para reorden
+  minQty         Float?
+  /// Nota de reorden / compra (ej. "Bidón 20 L")
+  reorderHint    String?
+  purchaseNotes  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   recipeLines RecetaLinea[]
   pendientes  Pendiente[]
+  movements   InventoryMovement[]
+  prodLines   ProduccionLinea[]
+}
+
+model InventoryMovement {
+  id        String   @id @default(cuid())
+  insumoId  String
+  insumo    Insumo   @relation(fields: [insumoId], references: [id], onDelete: Cascade)
+  /// AJUSTE | PRODUCCION | COMPRA | CHAT
+  kind      String
+  /// Delta en baseUnit del insumo (negativo = descuento)
+  delta     Float
+  note      String?
+  refId     String?
+  createdAt DateTime @default(now())
 }
 
 model Pendiente {
@@ -91,9 +113,10 @@ model Receta {
   userId String?
   user   User? @relation(fields: [userId], references: [id])
 
-  versions   RecetaVersion[]
-  pendientes Pendiente[]
-  menuItems  MenuItem[]
+  versions     RecetaVersion[]
+  pendientes   Pendiente[]
+  menuItems    MenuItem[]
+  producciones Produccion[]
 }
 
 model RecetaVersion {
@@ -108,7 +131,8 @@ model RecetaVersion {
   authorId String?
   author   User? @relation(fields: [authorId], references: [id])
 
-  lines RecetaLinea[]
+  lines        RecetaLinea[]
+  producciones Produccion[]
 
   @@unique([recetaId, number])
 }
@@ -125,6 +149,51 @@ model RecetaLinea {
   sortOrder      Int           @default(0)
   insumoId       String?
   insumo         Insumo?       @relation(fields: [insumoId], references: [id])
+}
+
+model Produccion {
+  id              String   @id @default(cuid())
+  recetaId        String
+  receta          Receta   @relation(fields: [recetaId], references: [id])
+  versionId       String
+  version         RecetaVersion @relation(fields: [versionId], references: [id])
+  /// Título legible (ej. "Marinado de frango — 5 kg")
+  title           String
+  /// yield | line
+  baseKind        String
+  baseLineId      String?
+  baseName        String
+  targetQuantity  Float
+  targetUnit      String
+  factor          Float
+  /// CONFIRMADA | BLOQUEADA (si se forzó con faltantes) — MVP solo CONFIRMADA
+  status          String   @default("CONFIRMADA")
+  notes           String?
+  /// Snapshot JSON de faltantes al confirmar (si hubo warning)
+  missingJson     String?
+  createdAt       DateTime @default(now())
+
+  userId String?
+  user   User? @relation(fields: [userId], references: [id])
+
+  lines ProduccionLinea[]
+}
+
+model ProduccionLinea {
+  id              String     @id @default(cuid())
+  produccionId    String
+  produccion      Produccion @relation(fields: [produccionId], references: [id], onDelete: Cascade)
+  name            String
+  quantity        Float?
+  unit            String?
+  insumoId        String?
+  insumo          Insumo?    @relation(fields: [insumoId], references: [id])
+  /// Cantidad descontada del stock (en baseUnit del insumo), si aplica
+  deductedQty     Float?
+  onHandBefore    Float?
+  onHandAfter     Float?
+  insufficient    Boolean    @default(false)
+  sortOrder       Int        @default(0)
 }
 
 model MenuItem {

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, Manrope } from "next/font/google";
-import { AppNav } from "@/components/AppNav";
+import { AppChrome } from "@/components/AppChrome";
 import "./globals.css";
 
 const display = Fraunces({
@@ -18,7 +18,7 @@ const body = Manrope({
 export const metadata: Metadata = {
   title: "Crunchadmin",
   description:
-    "Centro operativo del restaurante: mapa 3D, pendientes por zona, recetas y menú.",
+    "Centro operativo del restaurante: mapa 3D, inventario, producción, recetas y menú.",
 };
 
 export default function RootLayout({
@@ -29,8 +29,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className={`${display.variable} ${body.variable} antialiased`}>
-        <AppNav />
-        {children}
+        <AppChrome>{children}</AppChrome>
       </body>
     </html>
   );

@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { chatCompletion, isOpenAIConfigured } from "@/lib/openai";
+import {
+  matchInsumoName,
+  parseInventoryIntent,
+  toBaseQty,
+} from "@/lib/chat-inventory";
+import { formatQty } from "@/lib/inventory";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
@@ -17,11 +23,81 @@ async function getOrCreateThread() {
         create: {
           role: "SYSTEM",
           content:
-            "Eres el asistente de Crunchadmin para un restaurante. Ayudas con pendientes, recetas (incluyendo escalado) y menú multi-plataforma. Responde siempre en español. Para cambios sensibles pide confirmación.",
+            "Eres el asistente de Crunchadmin para un restaurante. Ayudas con pendientes, inventario, producción, recetas (incluyendo escalado) y menú multi-plataforma. Responde siempre en español. Para cambios sensibles pide confirmación.",
         },
       },
     },
   });
+}
+
+async function applyInventoryFromText(text: string): Promise<{
+  applied: boolean;
+  summary: string | null;
+  actions: Record<string, unknown> | null;
+}> {
+  const intent = parseInventoryIntent(text);
+  if (!intent) {
+    return { applied: false, summary: null, actions: null };
+  }
+
+  const insumos = await prisma.insumo.findMany();
+  const match = matchInsumoName(insumos, intent.nameQuery);
+  if (!match) {
+    return {
+      applied: false,
+      summary: `No encontré el insumo «${intent.nameQuery}» en inventario. Revisá el catálogo o crealo primero.`,
+      actions: { inventory: { intent, matched: false } },
+    };
+  }
+
+  const converted = toBaseQty(intent.quantity, intent.unit, match.baseUnit);
+  if (!converted.ok) {
+    return {
+      applied: false,
+      summary: converted.error,
+      actions: { inventory: { intent, matched: true, error: converted.error } },
+    };
+  }
+
+  const before = match.quantityOnHand;
+  const after =
+    intent.kind === "set"
+      ? converted.quantity
+      : Math.round((before + converted.quantity) * 10000) / 10000;
+  const delta = Math.round((after - before) * 10000) / 10000;
+
+  await prisma.insumo.update({
+    where: { id: match.id },
+    data: { quantityOnHand: after },
+  });
+  await prisma.inventoryMovement.create({
+    data: {
+      insumoId: match.id,
+      kind: "CHAT",
+      delta,
+      note: text.slice(0, 200),
+    },
+  });
+
+  const summary =
+    intent.kind === "set"
+      ? `Actualicé «${match.name}» a ${formatQty(after, match.baseUnit)} (antes ${formatQty(before, match.baseUnit)}).`
+      : `Sumé ${formatQty(converted.quantity, match.baseUnit)} a «${match.name}». Ahora hay ${formatQty(after, match.baseUnit)}.`;
+
+  return {
+    applied: true,
+    summary,
+    actions: {
+      inventory: {
+        intent,
+        insumoId: match.id,
+        name: match.name,
+        before,
+        after,
+        delta,
+      },
+    },
+  };
 }
 
 export async function GET() {
@@ -89,6 +165,10 @@ export async function POST(req: NextRequest) {
     text ||
     `(Adjunto: ${savedAttachments.map((a) => a.filename).join(", ")})`;
 
+  const inventoryResult = text
+    ? await applyInventoryFromText(text)
+    : { applied: false, summary: null, actions: null };
+
   const userMsg = await prisma.chatMessage.create({
     data: {
       threadId: thread.id,
@@ -113,33 +193,61 @@ export async function POST(req: NextRequest) {
     orderBy: { updatedAt: "desc" },
   });
   const recetas = await prisma.receta.findMany({ take: 10, select: { name: true } });
+  const insumos = await prisma.insumo.findMany({
+    take: 20,
+    orderBy: { name: "asc" },
+    select: { name: true, quantityOnHand: true, baseUnit: true, minQty: true },
+  });
 
   const systemExtra = `Contexto operativo Crunchadmin:
 Pendientes abiertos: ${pendientes.map((p) => `[${p.prioridad}] ${p.title} (${p.categoria})`).join("; ") || "ninguno"}
-Recetas: ${recetas.map((r) => r.name).join(", ") || "ninguna"}`;
+Recetas: ${recetas.map((r) => r.name).join(", ") || "ninguna"}
+Inventario: ${insumos.map((i) => `${i.name}=${i.quantityOnHand}${i.baseUnit}`).join("; ") || "vacío"}
+${inventoryResult.summary ? `Acción de inventario ya aplicada: ${inventoryResult.summary}` : ""}`;
 
-  const messages = [
-    {
-      role: "system" as const,
-      content:
-        "Eres el asistente de Crunchadmin. Responde en español. " + systemExtra,
-    },
-    ...history
-      .filter((m) => m.role !== "SYSTEM")
-      .map((m) => ({
-        role: (m.role === "USER" ? "user" : "assistant") as "user" | "assistant",
-        content: m.content,
-      })),
-  ];
+  let assistantContent: string;
+  let stub = false;
 
-  const result = await chatCompletion({ messages, imageDataUrls });
+  if (inventoryResult.applied && inventoryResult.summary && !isOpenAIConfigured()) {
+    stub = true;
+    assistantContent = `${inventoryResult.summary}\n\n(Modo stub sin OPENAI_API_KEY — el cambio de stock ya quedó registrado.)`;
+  } else {
+    const messages = [
+      {
+        role: "system" as const,
+        content:
+          "Eres el asistente de Crunchadmin. Responde en español. Si hubo una actualización de inventario, confirmala brevemente. " +
+          systemExtra,
+      },
+      ...history
+        .filter((m) => m.role !== "SYSTEM")
+        .map((m) => ({
+          role: (m.role === "USER" ? "user" : "assistant") as "user" | "assistant",
+          content: m.content,
+        })),
+    ];
+
+    const result = await chatCompletion({ messages, imageDataUrls });
+    stub = result.stub;
+    assistantContent = result.content;
+    if (inventoryResult.summary && stub && !inventoryResult.applied) {
+      assistantContent = `${inventoryResult.summary}\n\n${assistantContent}`;
+    } else if (inventoryResult.summary && stub) {
+      // already handled above when applied
+    } else if (inventoryResult.summary && !assistantContent.includes(inventoryResult.summary.slice(0, 20))) {
+      assistantContent = `${inventoryResult.summary}\n\n${assistantContent}`;
+    }
+  }
 
   const assistantMsg = await prisma.chatMessage.create({
     data: {
       threadId: thread.id,
       role: "ASSISTANT",
-      content: result.content,
-      actionsJson: result.stub ? JSON.stringify({ stub: true }) : null,
+      content: assistantContent,
+      actionsJson: JSON.stringify({
+        stub,
+        ...(inventoryResult.actions || {}),
+      }),
     },
   });
 
@@ -149,8 +257,9 @@ Recetas: ${recetas.map((r) => r.name).join(", ") || "ninguna"}`;
   });
 
   return NextResponse.json({
-    stub: result.stub,
+    stub,
     userMessage: userMsg,
     assistantMessage: assistantMsg,
+    inventory: inventoryResult.actions,
   });
 }
