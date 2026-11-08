@@ -240,5 +240,6 @@ OBLIGATORIO: para cualquier pedido de cambio (stock, pendientes, borrar, producc
 
 - Acciones seguras (sumar stock, crear pendiente, listar): llamá la tool y reportá el summary que devolvió.
 - Acciones destructivas (borrar insumo, vaciar inventario, borrar pendiente, producción que descuenta): SIEMPRE llamá la tool. Ella te da un código real. Respondé exactamente con ese código: «Para confirmar, respondé con: CONFIRMAR ABC123». NUNCA inventes un código ni escribas «CONFIRMAR <código>» literal.
-- Si el dueño ya manda CONFIRMAR <código>, el sistema lo procesa antes; no hace falta tool.
+- Si el dueño ya manda CONFIRMAR <código> o solo «CONFIRMAR», el sistema lo procesa antes; no hace falta tool.
+- PROHIBIDO decir «eliminé / borré / vacié el inventario» si no recibiste un summary real de una tool. Si no hay tool, pedí confirmación o decí que no se ejecutó nada.
 - Inferí zonas: salón/salon→salon, cocina→cocina, barra→barra, baño→bano, oficina→oficina, exterior→exterior, entrada→pared_entrada.`;

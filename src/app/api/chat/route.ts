@@ -10,6 +10,8 @@ import { formatQty } from "@/lib/inventory";
 import { SYSTEM_PROMPT } from "@/lib/assistant/tools";
 import {
   takePendingByCode,
+  takeLatestPending,
+  peekLatestPending,
   matchesConfirmSecret,
   getConfirmSecret,
 } from "@/lib/assistant/confirm-store";
@@ -20,6 +22,13 @@ import {
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
+
+/** Bare «CONFIRMAR» / «confirmo» without the 6-char code — owner often replies that way. */
+function isBareConfirm(text: string): boolean {
+  const t = text.trim();
+  // Do NOT treat bare «sí» as confirm — too ambiguous in chat.
+  return /^(confirmar|confirmo|sí\s*confirmo|si\s*confirmo)\s*[.!]?$/i.test(t);
+}
 
 async function getOrCreateThread() {
   const existing = await prisma.chatThread.findFirst({
@@ -126,7 +135,11 @@ async function applyInventoryFromText(text: string): Promise<{
 
 function parseConfirmCode(text: string): string | null {
   const m = text.trim().match(/^CONFIRMAR\s+([A-Za-z0-9_-]+)\s*$/i);
-  return m ? m[1] : null;
+  // Ignore bare CONFIRMAR (handled by isBareConfirm → latest pending)
+  if (!m) return null;
+  const code = m[1];
+  if (!code || /^(confirmar|confirmo|sí|si)$/i.test(code)) return null;
+  return code;
 }
 
 export async function GET() {
@@ -257,38 +270,24 @@ export async function POST(req: NextRequest) {
   }
 
   // —— Confirmation gate (destructive actions) ——
+  // Accept: CONFIRMAR <código> | bare CONFIRMAR/confirmo/sí | ASSISTANT_CONFIRM_SECRET
   const confirmCode = text ? parseConfirmCode(text) : null;
-  if (confirmCode || (text && matchesConfirmSecret(text))) {
-    const pending = confirmCode ? takePendingByCode(confirmCode) : null;
-    // Secret alone confirms the most recent pending if only one? Safer: require code.
-    // If secret used as "CONFIRMAR <secret>", treat secret as code lookup won't work —
-    // matchesConfirmSecret allows passphrase; require the latest pending when passphrase used.
-    if (!pending && text && matchesConfirmSecret(text)) {
-      // passphrase confirms nothing without a code — tell user to use CONFIRMAR <código>
-      const assistantContent =
-        "La frase secreta está configurada, pero necesitás el código de un solo uso. Respondé exactamente: CONFIRMAR <código> que te mostré antes.";
-      const assistantMsg = await prisma.chatMessage.create({
-        data: {
-          threadId: thread.id,
-          role: "ASSISTANT",
-          content: assistantContent,
-          actionsJson: JSON.stringify({ confirm: "need_code" }),
-        },
-      });
-      return NextResponse.json({
-        stub: false,
-        userMessage: userMsg,
-        assistantMessage: assistantMsg,
-      });
+  const bareConfirm = text ? isBareConfirm(text) : false;
+  if (confirmCode || bareConfirm || (text && matchesConfirmSecret(text))) {
+    let pending = confirmCode ? takePendingByCode(confirmCode) : null;
+    if (!pending && (bareConfirm || (text && matchesConfirmSecret(text)))) {
+      pending = takeLatestPending();
     }
 
     if (!pending) {
+      const hint = peekLatestPending();
       const assistantMsg = await prisma.chatMessage.create({
         data: {
           threadId: thread.id,
           role: "ASSISTANT",
-          content:
-            "No hay una acción pendiente con ese código (o expiró a los 5 minutos). Pedí de nuevo la acción destructiva.",
+          content: hint
+            ? `Todavía hay una acción pendiente: ${hint.summary}. Respondé: CONFIRMAR ${hint.code}`
+            : "No hay una acción pendiente (o expiró a los 5 minutos). Pedí de nuevo la acción destructiva.",
           actionsJson: JSON.stringify({ confirm: "expired_or_missing" }),
         },
       });
@@ -309,6 +308,7 @@ export async function POST(req: NextRequest) {
           confirmed: true,
           kind: pending.kind,
           ok: result.ok,
+          code: pending.code,
         }),
       },
     });
@@ -391,6 +391,19 @@ Inventario: ${insumos.map((i) => `${i.name}=${i.quantityOnHand}${i.baseUnit}`).j
     stub = result.stub;
     assistantContent = result.content;
     toolResults = result.toolResults || [];
+
+    // Guard: model must never claim a destructive mutation without a tool result
+    const claimedDone =
+      /elimin[eé].*insumos|inventario vaciad|borr[eé].*todos|ya (lo )?elimin/i.test(
+        assistantContent
+      );
+    const toolsRan = Array.isArray(toolResults) && toolResults.length > 0;
+    if (claimedDone && !toolsRan) {
+      const pendingHint = peekLatestPending();
+      assistantContent = pendingHint
+        ? `Todavía no borré nada. Hay una acción pendiente (${pendingHint.summary}). Para ejecutarla de verdad respondé exactamente: CONFIRMAR ${pendingHint.code} (también vale solo «CONFIRMAR»).`
+        : "Todavía no borré nada: no corrí ninguna herramienta. Pedí de nuevo la acción (ej. «eliminá todos los insumos») y después confirmá con el código.";
+    }
   }
 
   const assistantMsg = await prisma.chatMessage.create({

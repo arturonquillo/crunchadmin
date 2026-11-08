@@ -68,6 +68,20 @@ export function takePendingByCode(code: string): PendingAction | null {
   return action;
 }
 
+/** Most recent non-expired pending (for bare «CONFIRMAR» without code). */
+export function takeLatestPending(): PendingAction | null {
+  const actions = load().sort((a, b) => b.createdAt - a.createdAt);
+  if (actions.length === 0) return null;
+  const [action, ...rest] = actions;
+  save(rest);
+  return action;
+}
+
+export function peekLatestPending(): PendingAction | null {
+  const actions = load().sort((a, b) => b.createdAt - a.createdAt);
+  return actions[0] || null;
+}
+
 export function peekPendingByCode(code: string): PendingAction | null {
   const normalized = code.trim().toUpperCase();
   return (
