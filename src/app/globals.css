@@ -1346,14 +1346,18 @@ table.data th {
 .hablar-input {
   width: 100%;
   min-height: 2.6rem;
-  max-height: 7rem;
+  /* JS grows up to 8 lines; overflow scrolls only past that */
+  max-height: calc(1.4em * 8 + 1.3rem);
   resize: none;
+  overflow-y: hidden;
   border-radius: 14px;
   border: 1px solid rgba(26, 34, 24, 0.14);
   background: #fffef9;
   padding: 0.65rem 0.8rem;
   font: inherit;
+  line-height: 1.4;
   color: var(--ink);
+  field-sizing: content;
 }
 
 .hablar-mic,

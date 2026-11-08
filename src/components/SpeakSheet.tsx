@@ -234,6 +234,24 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
     });
   }, [messages, sending, transcribing]);
 
+  const resizeComposer = useCallback(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const styles = window.getComputedStyle(el);
+    const lineHeight = parseFloat(styles.lineHeight) || 22;
+    const padY =
+      parseFloat(styles.paddingTop || "0") + parseFloat(styles.paddingBottom || "0");
+    const maxH = lineHeight * 8 + padY;
+    const next = Math.min(el.scrollHeight, maxH);
+    el.style.height = `${Math.max(next, lineHeight + padY)}px`;
+    el.style.overflowY = el.scrollHeight > maxH + 1 ? "auto" : "hidden";
+  }, []);
+
+  useEffect(() => {
+    resizeComposer();
+  }, [text, recording, transcribing, resizeComposer]);
+
   const releaseStream = useCallback(() => {
     mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
     mediaStreamRef.current = null;
@@ -767,6 +785,7 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
               setText(e.target.value);
               baseTextRef.current = e.target.value;
             }}
+            onInput={resizeComposer}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
