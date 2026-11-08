@@ -311,14 +311,163 @@ async function pendienteDelete(args: {
 async function recetaList(): Promise<ToolResult> {
   const recetas = await prisma.receta.findMany({
     orderBy: { name: "asc" },
-    select: { id: true, name: true, yieldQty: true, yieldUnit: true },
+    select: { id: true, name: true, yieldQty: true, yieldUnit: true, yieldLabel: true },
   });
   if (recetas.length === 0) return { ok: true, summary: "No hay fichas técnicas." };
   const lines = recetas.map(
     (r) =>
-      `• ${r.name}${r.yieldQty != null ? ` (${r.yieldQty} ${r.yieldUnit})` : ""}`
+      `• ${r.name}${
+        r.yieldQty != null
+          ? ` — rendimiento ${r.yieldQty} ${r.yieldUnit || ""}${
+              r.yieldLabel ? ` (${r.yieldLabel})` : ""
+            }`
+          : ""
+      }`
   );
-  return { ok: true, summary: `Recetas:\n${lines.join("\n")}` };
+  return {
+    ok: true,
+    summary: `Recetas (${recetas.length}). Para ficha completa usá receta_get.\n${lines.join("\n")}`,
+  };
+}
+
+async function recetaGet(args: {
+  name: string;
+  versionNumber?: number;
+}): Promise<ToolResult> {
+  const q = String(args.name || "").trim().toLowerCase();
+  if (!q) return { ok: false, summary: "Falta el nombre de la receta." };
+
+  const recetas = await prisma.receta.findMany({
+    include: {
+      versions: {
+        orderBy: { number: "desc" },
+        include: {
+          lines: {
+            orderBy: { sortOrder: "asc" },
+            include: { insumo: { select: { name: true, baseUnit: true } } },
+          },
+        },
+      },
+    },
+  });
+
+  const exact = recetas.find((r) => r.name.toLowerCase() === q);
+  const partial = exact || recetas.find((r) => r.name.toLowerCase().includes(q));
+  if (!partial) {
+    const known = recetas.map((r) => r.name).join(", ") || "ninguna";
+    return {
+      ok: false,
+      summary: `No encontré receta «${args.name}». Recetas conocidas: ${known}.`,
+    };
+  }
+
+  const version =
+    (args.versionNumber != null
+      ? partial.versions.find((v) => v.number === Number(args.versionNumber))
+      : null) ||
+    partial.versions.find((v) => v.id === partial.currentVersionId) ||
+    partial.versions[0];
+
+  if (!version) {
+    return {
+      ok: false,
+      summary: `La receta «${partial.name}» no tiene versiones ni ingredientes cargados.`,
+    };
+  }
+
+  const published = version.id === partial.currentVersionId;
+  const yieldLine =
+    partial.yieldQty != null
+      ? `${partial.yieldQty} ${partial.yieldUnit || ""}${
+          partial.yieldLabel ? ` (${partial.yieldLabel})` : ""
+        }`.trim()
+      : "sin rendimiento definido";
+
+  const ingredientLines =
+    version.lines.length === 0
+      ? ["(sin ingredientes en esta versión)"]
+      : version.lines.map((l, i) => {
+          const qty =
+            l.isToTaste
+              ? "c/n"
+              : l.quantity != null
+                ? `${l.quantity}${l.unit ? ` ${l.unit}` : ""}`
+                : "—";
+          const notes: string[] = [];
+          if (l.canBeScaleBase) notes.push("Puede ser base");
+          if (l.isToTaste) notes.push("al gusto");
+          if (l.insumo?.name) notes.push(`insumo: ${l.insumo.name}`);
+          const noteStr = notes.length ? ` — ${notes.join("; ")}` : "";
+          return `${i + 1}. ${l.name}: ${qty}${noteStr}`;
+        });
+
+  const summary = [
+    `Ficha técnica «${partial.name}»`,
+    partial.notes ? `Notas/descripción: ${partial.notes}` : null,
+    `Rendimiento: ${yieldLine}`,
+    `Versión: v${version.number}${version.label ? ` — ${version.label}` : ""}${
+      published ? " (publicada)" : ""
+    }${version.changelog ? ` — ${version.changelog}` : ""}`,
+    `Ingredientes (${version.lines.length}):`,
+    ...ingredientLines,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return {
+    ok: true,
+    summary,
+    data: {
+      id: partial.id,
+      name: partial.name,
+      notes: partial.notes,
+      yieldQty: partial.yieldQty,
+      yieldUnit: partial.yieldUnit,
+      yieldLabel: partial.yieldLabel,
+      version: {
+        id: version.id,
+        number: version.number,
+        label: version.label,
+        changelog: version.changelog,
+        published,
+        lines: version.lines.map((l) => ({
+          name: l.name,
+          quantity: l.quantity,
+          unit: l.unit,
+          isToTaste: l.isToTaste,
+          canBeScaleBase: l.canBeScaleBase,
+          insumo: l.insumo?.name || null,
+        })),
+      },
+    },
+  };
+}
+
+async function inventoryList(args: { query?: string }): Promise<ToolResult> {
+  const q = String(args.query || "").trim().toLowerCase();
+  const items = await prisma.insumo.findMany({
+    orderBy: { name: "asc" },
+    take: 200,
+  });
+  const filtered = q
+    ? items.filter((i) => i.name.toLowerCase().includes(q))
+    : items;
+  if (filtered.length === 0) {
+    return {
+      ok: true,
+      summary: q
+        ? `No hay insumos que coincidan con «${args.query}».`
+        : "Inventario vacío.",
+    };
+  }
+  const lines = filtered.map((i) => {
+    const min = i.minQty != null ? `, mín ${formatQty(i.minQty, i.baseUnit)}` : "";
+    return `• ${i.name}: ${formatQty(i.quantityOnHand, i.baseUnit)}${min} [${i.category}]`;
+  });
+  return {
+    ok: true,
+    summary: `Inventario (${filtered.length}${q ? ` filtro «${args.query}»` : ""}):\n${lines.join("\n")}`,
+  };
 }
 
 async function recetaCreate(args: {
@@ -503,8 +652,14 @@ export async function executeAssistantTool(
     case "receta_list":
       result = await recetaList();
       break;
+    case "receta_get":
+      result = await recetaGet(args as never);
+      break;
     case "receta_create":
       result = await recetaCreate(args as never);
+      break;
+    case "inventory_list":
+      result = await inventoryList(args as never);
       break;
     case "menu_list":
       result = await menuList();

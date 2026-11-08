@@ -153,8 +153,31 @@ export const ASSISTANT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "receta_list",
-      description: "Lista fichas técnicas / recetas.",
+      description:
+        "Lista nombres y rendimientos de fichas técnicas. Para ingredientes/pasos usá receta_get.",
       parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "receta_get",
+      description:
+        "Devuelve la ficha técnica COMPLETA de una receta: nombre, notas/descripción, rendimiento, versión publicada, y TODOS los ingredientes con cantidad, unidad y notas (c/u). Usala SIEMPRE que pidan «la receta de X», ingredientes o ficha.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: {
+            type: "string",
+            description: "Nombre o fragmento de la receta (ej. Mayonesa casa)",
+          },
+          versionNumber: {
+            type: "number",
+            description: "Número de versión opcional; por defecto la publicada",
+          },
+        },
+        required: ["name"],
+      },
     },
   },
   {
@@ -184,6 +207,23 @@ export const ASSISTANT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           },
         },
         required: ["name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "inventory_list",
+      description:
+        "Lista el catálogo completo de insumos con stock, unidad, mínimo y categoría. Lectura segura.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "Filtro opcional por nombre parcial",
+          },
+        },
       },
     },
   },
@@ -236,9 +276,12 @@ export const ASSISTANT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
 
 export const SYSTEM_PROMPT = `Eres el asistente operativo de Crunchadmin (restaurante). Respondé siempre en español.
 
+Tenés acceso de LECTURA completa a la base (recetas con ingredientes, inventario, pendientes, menú, producción) vía herramientas. El contexto del sistema solo trae un resumen corto: NO digas que «solo tenés nombres» ni que «no hay ficha detallada» — si falta detalle, llamá la tool.
+
 OBLIGATORIO: para cualquier pedido de cambio (stock, pendientes, borrar, producción) DEBÉS llamar a la herramienta correspondiente. No digas que lo hiciste si la tool no corrió.
 
-- Acciones seguras (sumar stock, crear pendiente, listar): llamá la tool y reportá el summary que devolvió.
+- Si piden una receta / ficha / ingredientes / «enviame la receta de X»: SIEMPRE llamá receta_get y respondé con TODO lo que devolvió (rendimiento, versión, cada ingrediente con cantidad/unidad/notas, notas/pasos). Prohibido inventar o recortar ingredientes.
+- Acciones seguras (sumar stock, crear pendiente, listar, leer ficha): llamá la tool y reportá el summary que devolvió.
 - Acciones destructivas (borrar insumo, vaciar inventario, borrar pendiente, producción que descuenta): SIEMPRE llamá la tool. Ella te da un código real. Respondé exactamente con ese código: «Para confirmar, respondé con: CONFIRMAR ABC123». NUNCA inventes un código ni escribas «CONFIRMAR <código>» literal.
 - Si el dueño ya manda CONFIRMAR <código> o solo «CONFIRMAR», el sistema lo procesa antes; no hace falta tool.
 - PROHIBIDO decir «eliminé / borré / vacié el inventario» si no recibiste un summary real de una tool. Si no hay tool, pedí confirmación o decí que no se ejecutó nada.

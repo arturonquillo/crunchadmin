@@ -420,10 +420,10 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  const systemExtra = `Contexto operativo Crunchadmin:
+  const systemExtra = `Contexto operativo Crunchadmin (resumen; para ficha completa usá tools):
 Pendientes abiertos: ${pendientes.map((p) => `[${p.prioridad}] ${p.title} (${p.categoria}/${p.zone})`).join("; ") || "ninguno"}
-Recetas: ${recetas.map((r) => r.name).join(", ") || "ninguna"}
-Inventario: ${insumos.map((i) => `${i.name}=${i.quantityOnHand}${i.baseUnit}`).join("; ") || "vacío"}`;
+Recetas (nombres): ${recetas.map((r) => r.name).join(", ") || "ninguna"} — ingredientes vía receta_get
+Inventario (muestra): ${insumos.map((i) => `${i.name}=${i.quantityOnHand}${i.baseUnit}`).join("; ") || "vacío"} — catálogo completo vía inventory_list`;
 
   let assistantContent: string;
   let stub = false;
@@ -472,6 +472,32 @@ Inventario: ${insumos.map((i) => `${i.name}=${i.quantityOnHand}${i.baseUnit}`).j
       assistantContent = pendingHint
         ? `Todavía no borré nada. Hay una acción pendiente (${pendingHint.summary}). Para ejecutarla de verdad respondé exactamente: CONFIRMAR ${pendingHint.code} (también vale solo «CONFIRMAR»).`
         : "Todavía no borré nada: no corrí ninguna herramienta. Pedí de nuevo la acción (ej. «eliminá todos los insumos») y después confirmá con el código.";
+    }
+
+    // Guard: recipe asks must surface the full ficha via receta_get
+    const recipeAsk =
+      /(receta|ficha t[eé]cnica|ingredientes?\s+de)\b/i.test(text) &&
+      !/\b(crear|nueva|agreg[aá]|borr|elimin)/i.test(text);
+    const gotReceta = (toolResults as { tool?: string; name?: string; ok?: boolean }[]).some(
+      (t) => (t.tool || t.name) === "receta_get" && t.ok
+    );
+    if (recipeAsk && !gotReceta) {
+      const nameGuess =
+        text.match(
+          /(?:receta|ficha)\s+(?:de\s+|completa\s+de\s+)?[«"']?([^«"'?.!\n]+)[»"']?/i
+        )?.[1]?.trim() ||
+        text.match(/mayonesa\s+casa|marinado|papas|burger/i)?.[0] ||
+        "";
+      if (nameGuess) {
+        const fetched = await executeAssistantTool(
+          "receta_get",
+          JSON.stringify({ name: nameGuess })
+        );
+        toolResults = [...(toolResults as unknown[]), fetched];
+        if (fetched.ok) {
+          assistantContent = fetched.summary;
+        }
+      }
     }
   }
 
