@@ -7,7 +7,11 @@ import { SpeakSheet } from "@/components/SpeakSheet";
 
 const DRAWER_LINKS = [
   { href: "/pendientes", label: "Pendientes", hint: "Trabajo por zona" },
-  { href: "/recetas", label: "Recetas", hint: "Fichas técnicas" },
+  {
+    href: "/recetas",
+    label: "Fichas técnicas",
+    hint: "Recetas y escalado",
+  },
   { href: "/produccion", label: "Producción", hint: "Batches y descuentos" },
   { href: "/menu", label: "Menú de ventas", hint: "Plataformas" },
   { href: "/chat", label: "Chat histórico", hint: "Conversaciones" },

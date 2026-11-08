@@ -60,6 +60,8 @@ export default function InventarioPage() {
   const [catFilter, setCatFilter] = useState<string>("");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [onlyAttention, setOnlyAttention] = useState(false);
+  /** Categories open in the accordion; missing key = open (default expanded). */
+  const [openCats, setOpenCats] = useState<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -166,6 +168,19 @@ export default function InventarioPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  function isCatOpen(category: string): boolean {
+    if (catFilter && catFilter === category) return true;
+    return openCats[category] !== false;
+  }
+
+  function toggleCat(category: string) {
+    if (catFilter && catFilter === category) return;
+    setOpenCats((prev) => {
+      const currentlyOpen = prev[category] !== false;
+      return { ...prev, [category]: !currentlyOpen };
+    });
+  }
+
   async function onCreate(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -239,7 +254,7 @@ export default function InventarioPage() {
 
       <p className="inv-fichas-hint">
         Las <strong>fichas técnicas</strong> están en{" "}
-        <Link href="/recetas">Recetas</Link> (Menú → Recetas). Cada ficha tiene escalado; desde un
+        <Link href="/recetas">Menú → Fichas técnicas</Link>. Cada ficha tiene escalado; desde un
         insumo podés abrir las fichas que lo usan.
       </p>
 
@@ -424,13 +439,33 @@ export default function InventarioPage() {
         ) : grouped.length === 0 ? (
           <p className="empty">Ningún insumo coincide con el filtro.</p>
         ) : (
-          grouped.map((group) => (
-            <div key={group.category} className="inv-group">
+          grouped.map((group) => {
+            const catOpen = isCatOpen(group.category);
+            const panelId = `inv-cat-panel-${group.category}`;
+            return (
+            <div
+              key={group.category}
+              className={`inv-group ${catOpen ? "is-open" : "is-collapsed"}`}
+            >
               <h2 className="inv-group-title">
-                {group.label}
-                <span>{group.items.length}</span>
+                <button
+                  type="button"
+                  className="inv-acc-trigger"
+                  aria-expanded={catOpen}
+                  aria-controls={panelId}
+                  onClick={() => toggleCat(group.category)}
+                >
+                  <span className="inv-acc-chevron" aria-hidden />
+                  <span className="inv-acc-label">{group.label}</span>
+                  <span className="inv-acc-count">{group.items.length}</span>
+                </button>
               </h2>
-              <ul className="inv-cards">
+              <ul
+                id={panelId}
+                className="inv-cards"
+                hidden={!catOpen}
+                aria-hidden={!catOpen}
+              >
                 {group.items.map((item) => {
                   const fill = packFillPercent(item.quantityOnHand, item.packSize);
                   const st = stockStatus({
@@ -522,7 +557,7 @@ export default function InventarioPage() {
                             {item.fichas.length === 0 ? (
                               <span>
                                 ninguna ligada ·{" "}
-                                <Link href="/recetas">ver Recetas</Link>
+                                <Link href="/recetas">ver fichas</Link>
                               </span>
                             ) : (
                               item.fichas.map((f, i) => (
@@ -572,7 +607,8 @@ export default function InventarioPage() {
                 })}
               </ul>
             </div>
-          ))
+            );
+          })
         )}
       </section>
     </div>

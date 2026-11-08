@@ -78,9 +78,10 @@ export default function RecetasPage() {
     <div className="shell">
       <div className="page-head">
         <div>
-          <h1 className="section-title">Recetas</h1>
+          <h1 className="section-title">Fichas técnicas</h1>
           <p className="section-sub" style={{ marginBottom: 0 }}>
-            Fichas técnicas con versiones. Abrí una para escalar.
+            Recetas con versiones y escalado. Abrí una ficha para producir desde
+            rendimiento o desde un ingrediente base.
           </p>
         </div>
         <div className="page-head-actions">
