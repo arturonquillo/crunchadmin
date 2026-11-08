@@ -30,6 +30,7 @@ import {
   wantsInventoryLoad,
   type ExtractedDocument,
 } from "@/lib/assistant/document-extract";
+import { resolveThread, touchThread } from "@/lib/chat-threads";
 
 function isBareCancel(text: string): boolean {
   return /^(cancelar|cancelo|no)\s*[.!]?$/i.test(text.trim());
@@ -45,24 +46,6 @@ function isBareConfirm(text: string): boolean {
   const t = text.trim();
   // Do NOT treat bare «sí» as confirm — too ambiguous in chat.
   return /^(confirmar|confirmo|sí\s*confirmo|si\s*confirmo)\s*[.!]?$/i.test(t);
-}
-
-async function getOrCreateThread() {
-  const existing = await prisma.chatThread.findFirst({
-    orderBy: { updatedAt: "desc" },
-  });
-  if (existing) return existing;
-  return prisma.chatThread.create({
-    data: {
-      title: "Operación diaria",
-      messages: {
-        create: {
-          role: "SYSTEM",
-          content: SYSTEM_PROMPT,
-        },
-      },
-    },
-  });
 }
 
 /** Legacy regex path — still used as offline/stub fallback for stock phrases */
@@ -159,8 +142,9 @@ function parseConfirmCode(text: string): string | null {
   return code;
 }
 
-export async function GET() {
-  const thread = await getOrCreateThread();
+export async function GET(req: NextRequest) {
+  const threadId = req.nextUrl.searchParams.get("threadId");
+  const thread = await resolveThread(threadId);
   const messages = await prisma.chatMessage.findMany({
     where: { threadId: thread.id, role: { not: "SYSTEM" } },
     orderBy: { createdAt: "asc" },
@@ -174,6 +158,7 @@ export async function GET() {
   }));
   return NextResponse.json({
     threadId: thread.id,
+    title: thread.title,
     openaiConfigured: isOpenAIConfigured(),
     confirmSecretConfigured: Boolean(getConfirmSecret()),
     pending,
@@ -184,6 +169,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const contentType = req.headers.get("content-type") || "";
   let text = "";
+  let requestedThreadId: string | null = null;
   const imageDataUrls: string[] = [];
   const savedAttachments: {
     filename: string;
@@ -197,6 +183,8 @@ export async function POST(req: NextRequest) {
   if (contentType.includes("multipart/form-data")) {
     const form = await req.formData();
     text = String(form.get("message") ?? "").trim();
+    const tid = form.get("threadId");
+    if (typeof tid === "string" && tid.trim()) requestedThreadId = tid.trim();
     const files = form.getAll("files");
     const uploadDir = path.join(process.cwd(), "public", "uploads");
     await mkdir(uploadDir, { recursive: true });
@@ -230,6 +218,9 @@ export async function POST(req: NextRequest) {
   } else {
     const body = await req.json();
     text = String(body.message ?? "").trim();
+    if (typeof body.threadId === "string" && body.threadId.trim()) {
+      requestedThreadId = body.threadId.trim();
+    }
     // Widget cancel: { action: "cancel_pending", code?: "ABC123" }
     if (body.action === "cancel_pending") {
       text = body.code
@@ -242,7 +233,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Mensaje vacío" }, { status: 400 });
   }
 
-  const thread = await getOrCreateThread();
+  const thread = await resolveThread(requestedThreadId);
   const attachNames = savedAttachments.map((a) => a.filename).join(", ");
   const userContent =
     text ||
@@ -261,6 +252,7 @@ export async function POST(req: NextRequest) {
     },
     include: { attachments: true },
   });
+  await touchThread(thread.id, userContent);
 
   const structuredLines = extractedDocs.flatMap((d) =>
     d.lines.map((line) => ({ ...line, source: d.filename }))

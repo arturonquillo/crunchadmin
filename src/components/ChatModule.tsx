@@ -52,14 +52,16 @@ function IconSend() {
   );
 }
 
-function IconClose() {
+function IconHistory() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.8" />
       <path
-        d="M6 6l12 12M18 6L6 18"
+        d="M12 8v4.5L15 15"
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth="1.8"
         strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );
@@ -105,9 +107,24 @@ type ChatMessage = {
   widgets?: ChatWidget[];
 };
 
+type ThreadSummary = {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messageCount: number;
+  preview: string | null;
+};
+
 type Props = {
-  onClose: () => void;
+  /** Start mic when OpenAI + recorder are ready (Hablar entry). */
   autoStart?: boolean;
+  /** Create a blank conversation on mount (Hablar entry). */
+  startNew?: boolean;
+  /** Open a specific thread; ignored when startNew. */
+  initialThreadId?: string | null;
+  /** Called when the active thread changes so the URL can stay in sync. */
+  onThreadChange?: (threadId: string) => void;
 };
 
 function ConfirmActionWidget({
@@ -182,7 +199,16 @@ function ChoiceActionWidget({
   );
 }
 
-export function SpeakSheet({ onClose, autoStart = false }: Props) {
+export function ChatModule({
+  autoStart = false,
+  startNew = false,
+  initialThreadId = null,
+  onThreadChange,
+}: Props) {
+  const [threadId, setThreadId] = useState<string | null>(
+    startNew ? null : initialThreadId
+  );
+  const [threadTitle, setThreadTitle] = useState("Chat");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [pendingCodes, setPendingCodes] = useState<Set<string>>(new Set());
   const [text, setText] = useState("");
@@ -197,6 +223,9 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
   const [elapsedMs, setElapsedMs] = useState(0);
   const [liveMode, setLiveMode] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [threads, setThreads] = useState<ThreadSummary[]>([]);
+  const [threadsLoading, setThreadsLoading] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -209,6 +238,8 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const onThreadChangeRef = useRef(onThreadChange);
+  onThreadChangeRef.current = onThreadChange;
 
   const micReady = Boolean(openaiOk && recorderSupport.ok);
   const micBusy = recording || transcribing;
@@ -221,27 +252,101 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
     return { ...m, widgets };
   }, []);
 
-  const loadHistory = useCallback(async () => {
-    const res = await fetch("/api/chat");
+  const applyThreadPayload = useCallback(
+    (data: {
+      threadId?: string;
+      title?: string | null;
+      pending?: { code: string }[];
+      messages?: ChatMessage[];
+    }) => {
+      if (data.threadId) {
+        setThreadId(data.threadId);
+        onThreadChangeRef.current?.(data.threadId);
+      }
+      if (data.title) setThreadTitle(data.title);
+      const pending = new Set<string>(
+        (data.pending || []).map((p) => String(p.code).toUpperCase())
+      );
+      setPendingCodes(pending);
+      setMessages((data.messages || []).map((m) => hydrateMessage(m)));
+    },
+    [hydrateMessage]
+  );
+
+  const loadThread = useCallback(
+    async (id?: string | null) => {
+      const qs = id ? `?threadId=${encodeURIComponent(id)}` : "";
+      const res = await fetch(`/api/chat${qs}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "No se pudo cargar el chat");
+      applyThreadPayload(data);
+      return data.threadId as string;
+    },
+    [applyThreadPayload]
+  );
+
+  const createThread = useCallback(async () => {
+    const res = await fetch("/api/chat/threads", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: "Nueva conversación" }),
+    });
     const data = await res.json();
-    const pending = new Set<string>(
-      (data.pending || []).map((p: { code: string }) => String(p.code).toUpperCase())
-    );
-    setPendingCodes(pending);
-    setMessages((data.messages || []).map((m: ChatMessage) => hydrateMessage(m)));
-  }, [hydrateMessage]);
+    if (!res.ok) throw new Error(data.error || "No se pudo crear conversación");
+    setThreadId(data.id);
+    setThreadTitle(data.title || "Nueva conversación");
+    setMessages([]);
+    setPendingCodes(new Set());
+    onThreadChangeRef.current?.(data.id);
+    return data.id as string;
+  }, []);
+
+  const loadThreadList = useCallback(async () => {
+    setThreadsLoading(true);
+    try {
+      const res = await fetch("/api/chat/threads");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "No se pudo listar chats");
+      setThreads(data.threads || []);
+    } catch (err) {
+      setStatus(String(err));
+    } finally {
+      setThreadsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    Promise.all([
-      loadHistory(),
-      fetch("/api/transcribe/session")
-        .then((r) => r.json())
-        .then((d) => setOpenaiOk(Boolean(d.configured)))
-        .catch(() => setOpenaiOk(false)),
-    ])
-      .catch((err) => setStatus(String(err)))
-      .finally(() => setBooting(false));
-  }, [loadHistory]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const sessionP = fetch("/api/transcribe/session")
+          .then((r) => r.json())
+          .then((d) => setOpenaiOk(Boolean(d.configured)))
+          .catch(() => setOpenaiOk(false));
+
+        if (startNew) {
+          await createThread();
+        } else {
+          await loadThread(initialThreadId);
+        }
+        await sessionP;
+      } catch (err) {
+        if (!cancelled) setStatus(String(err));
+      } finally {
+        if (!cancelled) setBooting(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Mount-only boot for this ChatModule instance (keyed by page).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!historyOpen) return;
+    void loadThreadList();
+  }, [historyOpen, loadThreadList]);
 
   useEffect(() => {
     logRef.current?.scrollTo({
@@ -496,17 +601,17 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
     };
   }, [releaseStream]);
 
-  // Only auto-start after we know OpenAI is configured — avoids false "falta API key"
+  // Only auto-start after boot + OpenAI ready — avoids false "falta API key"
   useEffect(() => {
-    if (!autoStart) return;
+    if (!autoStart || booting) return;
     if (openaiOk !== true) return;
     if (!recorderSupport.ok) return;
     const t = window.setTimeout(() => {
       void startRecording();
-    }, 50);
+    }, 80);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoStart, openaiOk, recorderSupport.ok]);
+  }, [autoStart, booting, openaiOk, recorderSupport.ok]);
 
   const addFiles = useCallback((list: FileList | null) => {
     if (!list || list.length === 0) return;
@@ -556,36 +661,53 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
       setPendingFiles([]);
       if (fileRef.current) fileRef.current.value = "";
       try {
+        let activeId = threadId;
+        if (!activeId) {
+          activeId = await createThread();
+        }
         let res: Response;
         if (sendingFiles.length > 0) {
           const form = new FormData();
           form.set("message", clean);
-          form.set("source", "speak");
+          form.set("source", "chat");
+          form.set("threadId", activeId);
           sendingFiles.forEach((f) => form.append("files", f));
           res = await fetch("/api/chat", { method: "POST", body: form });
         } else {
           res = await fetch("/api/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: clean, source: "speak" }),
+            body: JSON.stringify({
+              message: clean,
+              source: "chat",
+              threadId: activeId,
+            }),
           });
         }
         const data = await res.json();
         if (!res.ok) {
           setStatus(data.error || "Error al enviar");
-          await loadHistory();
+          await loadThread(activeId);
           return;
         }
-        await loadHistory();
+        await loadThread(activeId);
       } catch (err) {
         setStatus(String(err));
-        await loadHistory();
+        if (threadId) await loadThread(threadId);
       } finally {
         setSending(false);
         inputRef.current?.focus();
       }
     },
-    [sending, recording, stopRecording, loadHistory, pendingFiles]
+    [
+      sending,
+      recording,
+      stopRecording,
+      loadThread,
+      pendingFiles,
+      threadId,
+      createThread,
+    ]
   );
 
   async function onSubmit(e: FormEvent) {
@@ -603,17 +725,53 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "cancel_pending", code }),
+        body: JSON.stringify({
+          action: "cancel_pending",
+          code,
+          threadId,
+        }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         setStatus(data.error || "No se pudo cancelar");
       }
-      await loadHistory();
+      await loadThread(threadId);
     } catch (err) {
       setStatus(String(err));
     } finally {
       setSending(false);
+    }
+  }
+
+  async function openHistory() {
+    setHistoryOpen(true);
+  }
+
+  async function selectThread(id: string) {
+    setHistoryOpen(false);
+    setBooting(true);
+    setStatus(null);
+    try {
+      await loadThread(id);
+    } catch (err) {
+      setStatus(String(err));
+    } finally {
+      setBooting(false);
+      inputRef.current?.focus();
+    }
+  }
+
+  async function startFreshFromHistory() {
+    setHistoryOpen(false);
+    setBooting(true);
+    setStatus(null);
+    try {
+      await createThread();
+    } catch (err) {
+      setStatus(String(err));
+    } finally {
+      setBooting(false);
+      inputRef.current?.focus();
     }
   }
 
@@ -625,40 +783,83 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
         : null;
 
   return (
-    <div
-      className="hablar-root"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Asistente Crunchadmin"
-    >
-      <div
-        className="hablar-backdrop"
-        onClick={() => {
-          stopRecording();
-          onClose();
-        }}
-      />
+    <div className="hablar-root is-page" aria-label="Chat Crunchadmin">
       <div className="hablar-panel">
         <header className="hablar-head">
           <div className="hablar-head-text">
             <p className="hablar-kicker">Asistente</p>
-            <h2>Hablar</h2>
+            <h2>Chat</h2>
+            <p className="hablar-thread-title">{threadTitle}</p>
           </div>
           <button
             type="button"
-            className="hablar-close"
-            aria-label="Cerrar chat"
-            onClick={() => {
-              stopRecording();
-              onClose();
-            }}
+            className="hablar-history-btn"
+            aria-label="Historial de conversaciones"
+            aria-expanded={historyOpen}
+            onClick={() => void openHistory()}
           >
-            <IconClose />
+            <IconHistory />
+            <span>Historial</span>
           </button>
         </header>
 
+        {historyOpen && (
+          <div className="chat-history-panel" role="dialog" aria-label="Historial">
+            <div className="chat-history-head">
+              <h3>Conversaciones</h3>
+              <div className="chat-history-head-actions">
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={() => void startFreshFromHistory()}
+                >
+                  Nueva
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={() => setHistoryOpen(false)}
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+            <div className="chat-history-list">
+              {threadsLoading && (
+                <p className="hablar-empty">Cargando conversaciones…</p>
+              )}
+              {!threadsLoading && threads.length === 0 && (
+                <p className="hablar-empty">Todavía no hay conversaciones.</p>
+              )}
+              {!threadsLoading &&
+                threads.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    className={`chat-history-item ${t.id === threadId ? "active" : ""}`}
+                    onClick={() => void selectThread(t.id)}
+                  >
+                    <span className="chat-history-item-title">{t.title}</span>
+                    <span className="chat-history-item-meta">
+                      {new Date(t.updatedAt).toLocaleString("es", {
+                        day: "2-digit",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                      {t.messageCount > 0 ? ` · ${t.messageCount} msgs` : ""}
+                    </span>
+                    {t.preview && (
+                      <span className="chat-history-item-preview">{t.preview}</span>
+                    )}
+                  </button>
+                ))}
+            </div>
+          </div>
+        )}
+
         <div className="hablar-log" ref={logRef}>
-          {booting && <p className="hablar-empty">Cargando historial…</p>}
+          {booting && <p className="hablar-empty">Cargando chat…</p>}
           {!booting && messages.length === 0 && (
             <div className="hablar-empty">
               <p>Conversá con el sistema.</p>

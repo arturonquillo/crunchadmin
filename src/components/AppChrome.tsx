@@ -1,16 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { SpeakSheet } from "@/components/SpeakSheet";
 
 const DRAWER_LINKS = [
   { href: "/pendientes", label: "Pendientes", hint: "Trabajo por zona" },
   { href: "/recetas", label: "Recetas", hint: "Fichas técnicas" },
   { href: "/produccion", label: "Producción", hint: "Batches y descuentos" },
   { href: "/menu", label: "Menú de ventas", hint: "Plataformas" },
-  { href: "/chat", label: "Chat histórico", hint: "Conversaciones" },
+  { href: "/chat", label: "Chat", hint: "Hablar e historial" },
   { href: "/ajustes", label: "Ajustes", hint: "Preferencias (stub)" },
 ];
 
@@ -79,13 +78,13 @@ function IconMic() {
 
 export function AppChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const isHome = pathname === "/";
+  const isChat = pathname.startsWith("/chat");
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [speakOpen, setSpeakOpen] = useState(false);
 
   useEffect(() => {
     setDrawerOpen(false);
-    setSpeakOpen(false);
   }, [pathname]);
 
   useEffect(() => {
@@ -93,8 +92,13 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
     return () => document.body.classList.remove("drawer-open");
   }, [drawerOpen]);
 
+  function openHablar() {
+    // Always a fresh conversation ready to speak.
+    router.push(`/chat?new=1&speak=1&t=${Date.now()}`);
+  }
+
   return (
-    <div className={`app-chrome ${isHome ? "is-home" : ""}`}>
+    <div className={`app-chrome ${isHome ? "is-home" : ""} ${isChat ? "is-chat" : ""}`}>
       <header className="top-brand">
         <Link href="/" className="brand">
           <span className="brand-mark" aria-hidden />
@@ -123,9 +127,9 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
 
         <button
           type="button"
-          className={`bn-speak ${speakOpen ? "active" : ""}`}
-          onClick={() => setSpeakOpen(true)}
-          aria-label="Informar al sistema"
+          className={`bn-speak ${isChat ? "active" : ""}`}
+          onClick={openHablar}
+          aria-label="Hablar — nueva conversación"
         >
           <span className="bn-speak-inner">
             <IconMic />
@@ -177,10 +181,6 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
           })}
         </ul>
       </aside>
-
-      {speakOpen && (
-        <SpeakSheet autoStart onClose={() => setSpeakOpen(false)} />
-      )}
     </div>
   );
 }
