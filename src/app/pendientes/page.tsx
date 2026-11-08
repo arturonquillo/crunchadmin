@@ -1,12 +1,10 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
-  CATEGORIA_LABEL,
   CATEGORIAS,
-  ESTADO_LABEL,
   ESTADOS,
-  PRIORIDAD_LABEL,
   PRIORIDADES,
   type PendienteCategoria,
   type PendienteEstado,
@@ -32,6 +30,9 @@ const emptyForm = {
 };
 
 export default function PendientesPage() {
+  const t = useTranslations("Pendientes");
+  const tc = useTranslations("Common");
+  const tl = useTranslations("Labels");
   const [items, setItems] = useState<Pendiente[]>([]);
   const [filterCat, setFilterCat] = useState<string>("");
   const [form, setForm] = useState(emptyForm);
@@ -61,7 +62,7 @@ export default function PendientesPage() {
     });
     if (!res.ok) {
       const d = await res.json();
-      setError(d.error || "Error al crear");
+      setError(d.error || t("createError"));
       return;
     }
     setForm(emptyForm);
@@ -78,25 +79,22 @@ export default function PendientesPage() {
   }
 
   async function remove(id: string) {
-    if (!confirm("¿Eliminar este pendiente?")) return;
+    if (!confirm(t("confirmDelete"))) return;
     await fetch(`/api/pendientes/${id}`, { method: "DELETE" });
     await load();
   }
 
   return (
     <>
-      <h1 className="section-title">Pendientes</h1>
-      <p className="section-sub">
-        Lista unificada por categoría: mejoras, compras, planes, insumos y nuevas
-        recetas.
-      </p>
+      <h1 className="section-title">{t("title")}</h1>
+      <p className="section-sub">{t("subtitle")}</p>
 
       <section className="panel">
-        <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Nuevo pendiente</h2>
+        <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>{t("newTitle")}</h2>
         <form onSubmit={onCreate}>
           <div className="form-grid">
             <div className="field" style={{ gridColumn: "1 / -1" }}>
-              <label htmlFor="title">Título</label>
+              <label htmlFor="title">{t("fieldTitle")}</label>
               <input
                 id="title"
                 required
@@ -105,7 +103,7 @@ export default function PendientesPage() {
               />
             </div>
             <div className="field" style={{ gridColumn: "1 / -1" }}>
-              <label htmlFor="description">Descripción</label>
+              <label htmlFor="description">{t("fieldDescription")}</label>
               <textarea
                 id="description"
                 value={form.description}
@@ -115,7 +113,7 @@ export default function PendientesPage() {
               />
             </div>
             <div className="field">
-              <label htmlFor="categoria">Categoría</label>
+              <label htmlFor="categoria">{t("fieldCategoria")}</label>
               <select
                 id="categoria"
                 value={form.categoria}
@@ -128,13 +126,13 @@ export default function PendientesPage() {
               >
                 {CATEGORIAS.map((c) => (
                   <option key={c} value={c}>
-                    {CATEGORIA_LABEL[c]}
+                    {tl(`categoria.${c}`)}
                   </option>
                 ))}
               </select>
             </div>
             <div className="field">
-              <label htmlFor="prioridad">Prioridad</label>
+              <label htmlFor="prioridad">{t("fieldPrioridad")}</label>
               <select
                 id="prioridad"
                 value={form.prioridad}
@@ -144,23 +142,26 @@ export default function PendientesPage() {
               >
                 {PRIORIDADES.map((p) => (
                   <option key={p} value={p}>
-                    {PRIORIDAD_LABEL[p]}
+                    {tl(`prioridad.${p}`)}
                   </option>
                 ))}
               </select>
             </div>
             <div className="field">
-              <label htmlFor="estado">Estado</label>
+              <label htmlFor="estado">{t("fieldEstado")}</label>
               <select
                 id="estado"
                 value={form.estado}
                 onChange={(e) =>
-                  setForm({ ...form, estado: e.target.value as PendienteEstado })
+                  setForm({
+                    ...form,
+                    estado: e.target.value as PendienteEstado,
+                  })
                 }
               >
                 {ESTADOS.map((s) => (
                   <option key={s} value={s}>
-                    {ESTADO_LABEL[s]}
+                    {tl(`estado.${s}`)}
                   </option>
                 ))}
               </select>
@@ -168,7 +169,7 @@ export default function PendientesPage() {
           </div>
           <div className="form-actions">
             <button className="btn" type="submit">
-              Crear
+              {tc("create")}
             </button>
           </div>
         </form>
@@ -178,13 +179,13 @@ export default function PendientesPage() {
       </section>
 
       <section className="panel">
-        <div className="tabs" role="tablist" aria-label="Filtrar categoría">
+        <div className="tabs" role="tablist" aria-label={t("filterAria")}>
           <button
             type="button"
             className={!filterCat ? "tab active" : "tab"}
             onClick={() => setFilterCat("")}
           >
-            Todas
+            {tc("all")}
           </button>
           {CATEGORIAS.map((c) => (
             <button
@@ -193,24 +194,24 @@ export default function PendientesPage() {
               className={filterCat === c ? "tab active" : "tab"}
               onClick={() => setFilterCat(c)}
             >
-              {CATEGORIA_LABEL[c]}
+              {tl(`categoria.${c}`)}
             </button>
           ))}
         </div>
 
         {loading ? (
-          <p className="empty">Cargando…</p>
+          <p className="empty">{tc("loading")}</p>
         ) : items.length === 0 ? (
-          <p className="empty">No hay pendientes en este filtro.</p>
+          <p className="empty">{t("empty")}</p>
         ) : (
           <div className="table-wrap">
             <table className="data">
               <thead>
                 <tr>
-                  <th>Título</th>
-                  <th>Categoría</th>
-                  <th>Prioridad</th>
-                  <th>Estado</th>
+                  <th>{t("colTitle")}</th>
+                  <th>{t("colCategoria")}</th>
+                  <th>{t("colPrioridad")}</th>
+                  <th>{t("colEstado")}</th>
                   <th></th>
                 </tr>
               </thead>
@@ -218,27 +219,31 @@ export default function PendientesPage() {
                 {items.map((item) => (
                   <tr key={item.id}>
                     <td>
+                      {/* User content — keep original language */}
                       <strong>{item.title}</strong>
                       {item.description && (
-                        <div style={{ color: "var(--muted)", fontSize: "0.85rem" }}>
+                        <div
+                          style={{ color: "var(--muted)", fontSize: "0.85rem" }}
+                        >
                           {item.description}
                         </div>
                       )}
                     </td>
                     <td>
                       <span className="badge">
-                        {CATEGORIA_LABEL[item.categoria]}
+                        {tl(`categoria.${item.categoria}`)}
                       </span>
                     </td>
                     <td>
                       <span
                         className={
-                          item.prioridad === "CRITICA" || item.prioridad === "ALTA"
+                          item.prioridad === "CRITICA" ||
+                          item.prioridad === "ALTA"
                             ? "badge danger"
                             : "badge"
                         }
                       >
-                        {PRIORIDAD_LABEL[item.prioridad]}
+                        {tl(`prioridad.${item.prioridad}`)}
                       </span>
                     </td>
                     <td>
@@ -249,11 +254,11 @@ export default function PendientesPage() {
                             estado: e.target.value as PendienteEstado,
                           })
                         }
-                        aria-label={`Estado de ${item.title}`}
+                        aria-label={t("estadoOf", { title: item.title })}
                       >
                         {ESTADOS.map((s) => (
                           <option key={s} value={s}>
-                            {ESTADO_LABEL[s]}
+                            {tl(`estado.${s}`)}
                           </option>
                         ))}
                       </select>
@@ -265,7 +270,7 @@ export default function PendientesPage() {
                         style={{ padding: "0.35rem 0.6rem", fontSize: "0.8rem" }}
                         onClick={() => remove(item.id)}
                       >
-                        Borrar
+                        {tc("delete")}
                       </button>
                     </td>
                   </tr>
