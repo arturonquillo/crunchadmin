@@ -29,13 +29,19 @@ model Insumo {
   id             String   @id @default(cuid())
   name           String
   baseUnit       String // g, kg, ml, L, ud
-  /// Cantidad actual en stock (en baseUnit)
+  /// ACEITES | CARNES | LACTEOS | SECOS | ESPECIAS | FRESCOS | OTROS
+  category       String   @default("OTROS")
+  /// Cantidad actual en stock (en baseUnit) — cantidadActual
   quantityOnHand Float    @default(0)
-  /// Umbral mínimo opcional para reorden
+  /// Tamaño típico de compra / pack (100% de la barra). Ej. vainilla 25 kg
+  packSize       Float?
+  /// Punto de reorden (par mínimo / purchase point)
   minQty         Float?
-  /// Nota de reorden / compra (ej. "Bidón 20 L")
+  /// Nota de reorden / compra (ej. "Bidón 20 L · pedir al llegar a 20%")
   reorderHint    String?
   purchaseNotes  String?
+  /// Recordatorio FIFO / rotación en cámara o estantería
+  fifoNote       String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

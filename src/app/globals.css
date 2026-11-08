@@ -1093,7 +1093,337 @@ table.data th {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
-  justify-content: flex-end;
+}
+
+/* —— Inventario stock desk —— */
+.inv-page .section-sub {
+  max-width: 40rem;
+}
+
+.inv-hero {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.85rem;
+  align-items: flex-start;
+  margin-bottom: 0.35rem;
+}
+
+.inv-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.inv-fichas-hint {
+  margin: 0 0 1rem;
+  padding: 0.65rem 0.85rem;
+  border-left: 3px solid var(--accent);
+  background: rgba(47, 107, 58, 0.06);
+  font-size: 0.92rem;
+  color: var(--ink-soft);
+}
+
+.inv-fichas-hint a {
+  color: var(--accent-deep);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.inv-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin-bottom: 0.85rem;
+}
+
+.inv-stat {
+  background: var(--panel-solid);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.7rem 0.75rem;
+  text-align: center;
+}
+
+.inv-stat strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.inv-stat span {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.inv-stat.warn {
+  border-color: rgba(180, 83, 9, 0.35);
+  background: rgba(180, 83, 9, 0.08);
+}
+
+.inv-stat.crit {
+  border-color: rgba(159, 18, 57, 0.35);
+  background: rgba(159, 18, 57, 0.08);
+}
+
+.inv-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+  margin-bottom: 0.65rem;
+}
+
+.inv-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  padding-bottom: 0.35rem;
+  white-space: nowrap;
+}
+
+.inv-cats {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.35rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 0.25rem;
+}
+
+.inv-cats::-webkit-scrollbar {
+  display: none;
+}
+
+.inv-cats button {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--panel-solid);
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  color: var(--ink-soft);
+}
+
+.inv-cats button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.inv-group {
+  margin-bottom: 1.15rem;
+}
+
+.inv-group-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0 0 0.55rem;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+}
+
+.inv-group-title span {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.inv-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.inv-card {
+  background: var(--panel-solid);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 8px 22px rgba(26, 34, 24, 0.04);
+}
+
+.inv-card.status-warn {
+  border-color: rgba(180, 83, 9, 0.35);
+}
+
+.inv-card.status-crit {
+  border-color: rgba(159, 18, 57, 0.4);
+}
+
+.inv-card-main {
+  appearance: none;
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 0.85rem 0.95rem 0.95rem;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.inv-card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  align-items: flex-start;
+  margin-bottom: 0.35rem;
+}
+
+.inv-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.22rem 0.45rem;
+  border-radius: 6px;
+  background: rgba(47, 107, 58, 0.12);
+  color: var(--accent-deep);
+}
+
+.inv-badge.warn {
+  background: rgba(180, 83, 9, 0.14);
+  color: var(--warn);
+}
+
+.inv-badge.crit {
+  background: rgba(159, 18, 57, 0.12);
+  color: var(--danger);
+}
+
+.inv-badge.unk {
+  background: rgba(26, 34, 24, 0.06);
+  color: var(--muted);
+}
+
+.inv-card-qty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem;
+  margin-bottom: 0.45rem;
+}
+
+.inv-qty-now {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.inv-qty-pack {
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.inv-pct {
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.inv-bar {
+  height: 0.55rem;
+  border-radius: 999px;
+  background: rgba(26, 34, 24, 0.08);
+  overflow: hidden;
+}
+
+.inv-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 280ms ease;
+}
+
+.inv-bar-fill.warn {
+  background: var(--warn);
+}
+
+.inv-bar-fill.crit {
+  background: var(--danger);
+}
+
+.inv-bar-caption {
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.inv-no-pack {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.inv-cat-attn {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  margin-left: 0.35rem;
+  padding: 0 0.28rem;
+  border-radius: 999px;
+  background: rgba(180, 83, 9, 0.2);
+  color: var(--warn);
+  font-style: normal;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.inv-cats button.active .inv-cat-attn {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+.inv-reorder-msg {
+  margin: 0.45rem 0 0;
+  font-size: 0.82rem;
+  color: var(--warn);
+}
+
+.inv-card.status-crit .inv-reorder-msg {
+  color: var(--danger);
+}
+
+.inv-card-detail {
+  border-top: 1px solid var(--line);
+  padding: 0.75rem 0.95rem 0.95rem;
+  background: rgba(243, 240, 232, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+}
+
+.inv-card-detail .muted {
+  color: var(--muted);
+}
+
+.inv-fichas a {
+  color: var(--accent-deep);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+@media (max-width: 720px) {
+  .inv-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .btn.danger {

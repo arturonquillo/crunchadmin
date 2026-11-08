@@ -14,23 +14,36 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   const data: {
     name?: string;
     baseUnit?: string;
+    category?: string;
     quantityOnHand?: number;
+    packSize?: number | null;
     minQty?: number | null;
     reorderHint?: string | null;
     purchaseNotes?: string | null;
+    fifoNote?: string | null;
   } = {};
 
   if (body.name != null) data.name = String(body.name).trim();
   if (body.baseUnit != null) data.baseUnit = String(body.baseUnit).trim();
+  if (body.category != null) data.category = String(body.category);
   if (body.reorderHint !== undefined) {
     data.reorderHint = body.reorderHint ? String(body.reorderHint) : null;
   }
   if (body.purchaseNotes !== undefined) {
     data.purchaseNotes = body.purchaseNotes ? String(body.purchaseNotes) : null;
   }
+  if (body.fifoNote !== undefined) {
+    data.fifoNote = body.fifoNote ? String(body.fifoNote) : null;
+  }
   if (body.minQty !== undefined) {
     data.minQty =
       body.minQty === "" || body.minQty == null ? null : Number(body.minQty);
+  }
+  if (body.packSize !== undefined) {
+    data.packSize =
+      body.packSize === "" || body.packSize == null
+        ? null
+        : Number(body.packSize);
   }
 
   let delta: number | null = null;
