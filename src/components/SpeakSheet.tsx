@@ -180,7 +180,6 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
   const [booting, setBooting] = useState(true);
   const [liveStream, setLiveStream] = useState<MediaStream | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
-  const [livePartial, setLivePartial] = useState("");
   const [liveMode, setLiveMode] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -374,7 +373,6 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
         .stop()
         .then((finalText) => {
           if (finalText) applyLiveText(finalText);
-          setLivePartial("");
           setStatus(finalText ? "Texto listo — podés editar o Enviar." : null);
         })
         .catch((err) => setStatus(String(err)))
@@ -401,7 +399,6 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
 
   const startRecording = useCallback(async () => {
     setStatus(null);
-    setLivePartial("");
     if (openaiOk === null) {
       setStatus("Preparando micrófono…");
       return;
@@ -421,14 +418,8 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
     try {
       setStatus("Conectando transcripción en vivo…");
       const session = await startLiveTranscription({
-        onPartial: (spoken) => {
-          setLivePartial(spoken);
-          applyLiveText(spoken);
-        },
-        onFinal: (spoken) => {
-          setLivePartial(spoken);
-          applyLiveText(spoken);
-        },
+        onPartial: (spoken) => applyLiveText(spoken),
+        onFinal: (spoken) => applyLiveText(spoken),
         onStatus: (msg) => setStatus(msg),
         onError: (msg) => setStatus(msg),
       });
@@ -694,65 +685,14 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
             {micHint}
           </p>
         )}
-        {status && !recording && <p className="hablar-status">{status}</p>}
-
-        {(recording || transcribing) && (
-          <div
-            className={`hablar-rec-dock ${transcribing ? "is-transcribing" : "is-recording"}`}
-            role="status"
-            aria-live="polite"
-          >
-            {recording ? (
-              <>
-                <button
-                  type="button"
-                  className="hablar-stop-btn"
-                  aria-label="Detener grabación"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    stopRecording();
-                  }}
-                >
-                  <IconStop />
-                </button>
-                <div className="hablar-rec-main">
-                  <div className="hablar-rec-top">
-                    <span className="hablar-rec-dot" aria-hidden />
-                    <span className="hablar-rec-label">
-                      {liveMode ? "Live" : "Recording"}
-                    </span>
-                    <span className="hablar-rec-timer">{formatElapsed(elapsedMs)}</span>
-                  </div>
-                  <VoiceMeter stream={liveStream} active={recording} />
-                  {livePartial && (
-                    <p className="hablar-live-partial" aria-live="polite">
-                      {livePartial}
-                    </p>
-                  )}
-                </div>
-              </>
-            ) : (
-              <div className="hablar-rec-main">
-                <div className="hablar-rec-top">
-                  <span className="hablar-rec-label">Transcribiendo…</span>
-                  <span className="hablar-rec-timer">{formatElapsed(elapsedMs)}</span>
-                </div>
-                <div className="hablar-rec-pulse" aria-hidden>
-                  <span />
-                  <span />
-                  <span />
-                  <span />
-                  <span />
-                </div>
-              </div>
-            )}
-          </div>
+        {status && !recording && !transcribing && (
+          <p className="hablar-status">{status}</p>
         )}
 
         <form className="hablar-composer" onSubmit={onSubmit}>
           <button
             type="button"
-            className={`hablar-mic ${recording ? "listening" : ""} ${transcribing ? "transcribing" : ""}`}
+            className={`hablar-mic ${recording ? "listening is-stop" : ""} ${transcribing ? "transcribing" : ""}`}
             aria-label={
               recording
                 ? "Detener grabación"
@@ -767,32 +707,46 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
               toggleMic();
             }}
           >
-            <IconMic />
+            {recording ? <IconStop /> : <IconMic />}
+            {recording && (
+              <span className="hablar-mic-timer" aria-hidden>
+                {formatElapsed(elapsedMs)}
+              </span>
+            )}
           </button>
-          <textarea
-            ref={inputRef}
-            className="hablar-input"
-            value={text}
-            rows={1}
-            placeholder={
-              recording
-                ? "Hablá… usá Stop cuando termines"
-                : transcribing
-                  ? "Transcribiendo con IA…"
-                  : "Escribí o tocá el mic…"
-            }
-            onChange={(e) => {
-              setText(e.target.value);
-              baseTextRef.current = e.target.value;
-            }}
-            onInput={resizeComposer}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                void sendMessage(text);
+          <div
+            className={`hablar-input-wrap ${recording ? "is-recording" : ""} ${transcribing ? "is-transcribing" : ""} ${liveMode && recording ? "is-live" : ""}`}
+          >
+            <textarea
+              ref={inputRef}
+              className="hablar-input"
+              value={text}
+              rows={1}
+              placeholder={
+                recording
+                  ? "Hablá… el texto aparece acá"
+                  : transcribing
+                    ? "Cerrando transcripción…"
+                    : "Escribí o tocá el mic…"
               }
-            }}
-          />
+              onChange={(e) => {
+                setText(e.target.value);
+                baseTextRef.current = e.target.value;
+              }}
+              onInput={resizeComposer}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void sendMessage(text);
+                }
+              }}
+            />
+            {recording && (
+              <div className="hablar-input-meter" aria-hidden>
+                <VoiceMeter stream={liveStream} active={recording} bars={22} />
+              </div>
+            )}
+          </div>
           <button
             type="submit"
             className="hablar-send"
