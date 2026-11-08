@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { DbModeToggle } from "@/components/DbModeToggle";
 import type { DbMode } from "@/lib/db-mode";
@@ -61,6 +62,11 @@ export function AppChrome({
   const isHome = pathname === "/";
   const isChat = pathname.startsWith("/chat");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [portalReady, setPortalReady] = useState(false);
+
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
 
   const drawerLinks = [
     { href: "/", label: t("home"), hint: t("homeHint") },
@@ -109,19 +115,23 @@ export function AppChrome({
 
       <div className="app-main">{children}</div>
 
-      {!isChat && (
-        <button
-          type="button"
-          className="hablar-fab"
-          onClick={openHablar}
-          aria-label={t("hablarAria")}
-        >
-          <span className="hablar-fab-inner">
-            <IconMic />
-          </span>
-          <span className="hablar-fab-label">{t("hablar")}</span>
-        </button>
-      )}
+      {/* Portal FAB to body so drei Html / WebGL compositing cannot cover it. */}
+      {portalReady &&
+        !isChat &&
+        createPortal(
+          <button
+            type="button"
+            className="hablar-fab"
+            onClick={openHablar}
+            aria-label={t("hablarAria")}
+          >
+            <span className="hablar-fab-inner">
+              <IconMic />
+            </span>
+            <span className="hablar-fab-label">{t("hablar")}</span>
+          </button>,
+          document.body
+        )}
 
       <div
         className={`drawer-backdrop ${drawerOpen ? "open" : ""}`}

@@ -910,10 +910,10 @@ table.data th {
   border: none;
   background: transparent;
   position: fixed;
-  /* Above 3D canvas / zone sheet (55); below drawer (70). */
-  z-index: 65;
+  /* Above drei Html portals / WebGL; drawer stays higher when open. */
+  z-index: 90;
   right: 1rem;
-  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   align-items: center;
