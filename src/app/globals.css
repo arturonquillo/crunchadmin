@@ -813,10 +813,28 @@ table.data th {
   position: sticky;
   top: 0;
   z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
   padding: 0.55rem 1.1rem;
   padding-top: calc(0.55rem + env(safe-area-inset-top, 0px));
   background: rgba(243, 240, 232, 0.92);
   border-bottom: 1px solid var(--line);
+}
+
+.app-chrome.is-home .locale-switcher {
+  border-color: rgba(247, 244, 234, 0.22);
+  background: rgba(26, 34, 24, 0.55);
+}
+
+.app-chrome.is-home .locale-btn {
+  color: rgba(247, 244, 234, 0.78);
+}
+
+.app-chrome.is-home .locale-btn.active {
+  background: var(--accent);
+  color: #fff;
 }
 
 .app-chrome.is-home .top-brand {
@@ -2533,3 +2551,43 @@ tr.row-warn td {
     display: none;
   }
 }
+
+.locale-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.15rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 252, 245, 0.7);
+}
+
+.locale-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.locale-btn:hover:not(:disabled) {
+  background: rgba(47, 107, 58, 0.1);
+}
+
+.locale-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.locale-btn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+

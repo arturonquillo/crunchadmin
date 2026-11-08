@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useTranslations } from "next-intl";
 import {
   detectRecorderSupport,
   extensionForMime,
@@ -205,6 +206,7 @@ export function ChatModule({
   initialThreadId = null,
   onThreadChange,
 }: Props) {
+  const t = useTranslations("Chat");
   const [threadId, setThreadId] = useState<string | null>(
     startNew ? null : initialThreadId
   );
@@ -794,17 +796,17 @@ export function ChatModule({
           <button
             type="button"
             className="hablar-history-btn"
-            aria-label="Historial de conversaciones"
+            aria-label={t("historial")}
             aria-expanded={historyOpen}
             onClick={() => void openHistory()}
           >
             <IconHistory />
-            <span>Historial</span>
+            <span>{t("historial")}</span>
           </button>
         </header>
 
         {historyOpen && (
-          <div className="chat-history-panel" role="dialog" aria-label="Historial">
+          <div className="chat-history-panel" role="dialog" aria-label={t("historialTitle")}>
             <div className="chat-history-head">
               <h3>Conversaciones</h3>
               <div className="chat-history-head-actions">

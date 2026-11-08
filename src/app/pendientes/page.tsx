@@ -1,13 +1,11 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { FormSheet } from "@/components/FormSheet";
 import {
-  CATEGORIA_LABEL,
   CATEGORIAS,
-  ESTADO_LABEL,
   ESTADOS,
-  PRIORIDAD_LABEL,
   PRIORIDADES,
   type PendienteCategoria,
   type PendienteEstado,
@@ -42,14 +40,22 @@ const emptyForm = {
   zone: "oficina" as RestaurantZone,
 };
 
-function PriorityMark({ prioridad }: { prioridad: Prioridad }) {
+function PriorityMark({
+  prioridad,
+  label,
+  aria,
+}: {
+  prioridad: Prioridad;
+  label: string;
+  aria: string;
+}) {
   if (prioridad === "BAJA") return null;
   const high = prioridad === "ALTA" || prioridad === "CRITICA";
   return (
     <span
       className={high ? "pendiente-prio high" : "pendiente-prio medium"}
-      title={PRIORIDAD_LABEL[prioridad]}
-      aria-label={`Prioridad ${PRIORIDAD_LABEL[prioridad]}`}
+      title={label}
+      aria-label={aria}
     >
       {high ? "!!" : "!"}
     </span>
@@ -98,6 +104,9 @@ function TrashIcon() {
 }
 
 export default function PendientesPage() {
+  const t = useTranslations("Pendientes");
+  const tLabels = useTranslations("Labels");
+  const tCommon = useTranslations("Common");
   const [items, setItems] = useState<Pendiente[]>([]);
   const [filterCat, setFilterCat] = useState<string>("");
   const [filterZone, setFilterZone] = useState<string>("");
@@ -167,7 +176,7 @@ export default function PendientesPage() {
     });
     if (!res.ok) {
       const d = await res.json();
-      setError(d.error || "Error al crear");
+      setError(d.error || t("createError"));
       return;
     }
     setForm(emptyForm);
@@ -193,7 +202,7 @@ export default function PendientesPage() {
   }
 
   async function remove(id: string) {
-    if (!confirm("¿Eliminar este pendiente?")) return;
+    if (!confirm(t("confirmDelete"))) return;
     await fetch(`/api/pendientes/${id}`, { method: "DELETE" });
     await load();
   }
@@ -206,7 +215,11 @@ export default function PendientesPage() {
       >
         <div className="list-card-main">
           <div className="pendiente-title-row">
-            <PriorityMark prioridad={item.prioridad} />
+            <PriorityMark
+              prioridad={item.prioridad}
+              label={tLabels(`prioridad.${item.prioridad}`)}
+              aria={t("priorityOf", { label: tLabels(`prioridad.${item.prioridad}`) })}
+            />
             <strong className="pendiente-title">{item.title}</strong>
           </div>
           {item.description && (
@@ -215,7 +228,7 @@ export default function PendientesPage() {
           {showTags && (
             <div className="list-card-badges">
               <span className="badge">{ZONE_LABEL[item.zone]}</span>
-              <span className="badge">{CATEGORIA_LABEL[item.categoria]}</span>
+              <span className="badge">{tLabels(`categoria.${item.categoria}`)}</span>
             </div>
           )}
           <div className="pendientes-card-controls">
@@ -250,7 +263,7 @@ export default function PendientesPage() {
               >
                 {ESTADOS.map((s) => (
                   <option key={s} value={s}>
-                    {ESTADO_LABEL[s]}
+                    {tLabels(`estado.${s}`)}
                   </option>
                 ))}
               </select>
@@ -261,11 +274,11 @@ export default function PendientesPage() {
           type="button"
           className="btn danger icon-btn"
           onClick={() => remove(item.id)}
-          aria-label={`Borrar ${item.title}`}
-          title="Borrar"
+          aria-label={`${tCommon("delete")} ${item.title}`}
+          title={tCommon("delete")}
         >
           <TrashIcon />
-          <span className="icon-btn-label">Borrar</span>
+          <span className="icon-btn-label">{tCommon("delete")}</span>
         </button>
       </li>
     );
@@ -275,28 +288,28 @@ export default function PendientesPage() {
     <div className="shell">
       <div className="page-head">
         <div>
-          <h1 className="section-title">Pendientes</h1>
+          <h1 className="section-title">{t("title")}</h1>
           <p className="section-sub" style={{ marginBottom: 0 }}>
-            Lista y tablero. Hechos fuera de activos.
+            {t("subtitle")}
           </p>
         </div>
         <div className="page-head-actions">
           <button type="button" className="btn" onClick={() => setShowForm(true)}>
-            + Nuevo
+            {t("new")}
           </button>
         </div>
       </div>
 
       <section className="panel" style={{ marginTop: "0.85rem" }}>
         <div className="pendientes-toolbar">
-          <div className="seg-control pendientes-view-seg" role="tablist" aria-label="Vista">
+          <div className="seg-control pendientes-view-seg" role="tablist" aria-label={t("viewAria")}>
             <button
               type="button"
               className={view === "lista" ? "active" : undefined}
               onClick={() => setView("lista")}
               aria-pressed={view === "lista"}
             >
-              Lista
+              {t("lista")}
             </button>
             <button
               type="button"
@@ -304,7 +317,7 @@ export default function PendientesPage() {
               onClick={() => setView("board")}
               aria-pressed={view === "board"}
             >
-              Board
+              {t("board")}
             </button>
           </div>
 
@@ -315,9 +328,9 @@ export default function PendientesPage() {
               onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
               aria-label="Filtrar por estado"
             >
-              <option value="activos">Activos</option>
-              <option value="hecho">Hechos</option>
-              <option value="todos">Todos</option>
+              <option value="activos">{t("activos")}</option>
+              <option value="hecho">{t("hecho")}</option>
+              <option value="todos">{t("todos")}</option>
             </select>
 
             <button
@@ -330,7 +343,7 @@ export default function PendientesPage() {
               onClick={() => setShowTags((v) => !v)}
               aria-pressed={showTags}
               aria-label={showTags ? "Ocultar etiquetas" : "Mostrar etiquetas"}
-              title="Etiquetas"
+              title={t("tags")}
             >
               <TagsIcon />
             </button>
@@ -354,7 +367,7 @@ export default function PendientesPage() {
                   className={filterCat === c ? "tab active" : "tab"}
                   onClick={() => setFilterCat(c)}
                 >
-                  {CATEGORIA_LABEL[c]}
+                  {tLabels(`categoria.${c}`)}
                 </button>
               ))}
             </div>
@@ -381,10 +394,10 @@ export default function PendientesPage() {
         )}
 
         {loading ? (
-          <p className="empty">Cargando…</p>
+          <p className="empty">{tCommon("loading")}</p>
         ) : visibleItems.length === 0 ? (
           <p className="empty">
-            No hay pendientes en este filtro.{" "}
+            {t("empty")}{" "}
             <button type="button" className="btn ghost" onClick={() => setShowForm(true)}>
               Crear uno
             </button>
@@ -406,9 +419,9 @@ export default function PendientesPage() {
                 ? (["HECHO"] as PendienteEstado[])
                 : ESTADOS
             ).map((estado) => (
-              <section key={estado} className="pendientes-board-col" aria-label={ESTADO_LABEL[estado]}>
+              <section key={estado} className="pendientes-board-col" aria-label={tLabels(`estado.${estado}`)}>
                 <header className="pendientes-board-col-head">
-                  <h3>{ESTADO_LABEL[estado]}</h3>
+                  <h3>{tLabels(`estado.${estado}`)}</h3>
                   <span className="pendientes-board-count">
                     {boardColumns[estado].length}
                   </span>
@@ -428,7 +441,7 @@ export default function PendientesPage() {
 
       <FormSheet
         open={showForm}
-        title="Nuevo pendiente"
+        title={t("newTitle")}
         kicker="Tareas"
         onClose={() => setShowForm(false)}
       >
@@ -466,7 +479,7 @@ export default function PendientesPage() {
               >
                 {CATEGORIAS.map((c) => (
                   <option key={c} value={c}>
-                    {CATEGORIA_LABEL[c]}
+                    {tLabels(`categoria.${c}`)}
                   </option>
                 ))}
               </select>
@@ -498,7 +511,7 @@ export default function PendientesPage() {
               >
                 {PRIORIDADES.map((p) => (
                   <option key={p} value={p}>
-                    {PRIORIDAD_LABEL[p]}
+                    {tLabels(`prioridad.${p}`)}
                   </option>
                 ))}
               </select>
@@ -514,7 +527,7 @@ export default function PendientesPage() {
               >
                 {ESTADOS.map((s) => (
                   <option key={s} value={s}>
-                    {ESTADO_LABEL[s]}
+                    {tLabels(`estado.${s}`)}
                   </option>
                 ))}
               </select>

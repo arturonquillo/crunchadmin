@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { FormSheet } from "@/components/FormSheet";
 
 type Receta = {
@@ -15,6 +16,7 @@ type Receta = {
 };
 
 export default function RecetasPage() {
+  const t = useTranslations("Recetas");
   const [recetas, setRecetas] = useState<Receta[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
@@ -78,11 +80,8 @@ export default function RecetasPage() {
     <div className="shell">
       <div className="page-head">
         <div>
-          <h1 className="section-title">Fichas técnicas</h1>
-          <p className="section-sub" style={{ marginBottom: 0 }}>
-            Recetas con versiones y escalado. Abrí una ficha para producir desde
-            rendimiento o desde un ingrediente base.
-          </p>
+          <h1 className="section-title">{t("title")}</h1>
+          <p className="section-sub" style={{ marginBottom: 0 }}>{t("subtitle")}</p>
         </div>
         <div className="page-head-actions">
           <button type="button" className="btn" onClick={() => setShowForm(true)}>

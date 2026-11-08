@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { FormSheet } from "@/components/FormSheet";
 import {
-  INSUMO_CATEGORIA_LABEL,
   INSUMO_CATEGORIAS,
   type InsumoCategoria,
 } from "@/lib/labels";
@@ -51,6 +51,8 @@ function statusClass(s: StockStatus): string {
 }
 
 export default function InventarioPage() {
+  const t = useTranslations("Inventario");
+  const tLabels = useTranslations("Labels");
   const [items, setItems] = useState<Insumo[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [showForm, setShowForm] = useState(false);
@@ -121,10 +123,10 @@ export default function InventarioPage() {
     }
     return INSUMO_CATEGORIAS.filter((c) => map.has(c)).map((c) => ({
       category: c,
-      label: INSUMO_CATEGORIA_LABEL[c],
+      label: tLabels(`insumoCategoria.${c}`),
       items: map.get(c)!,
     }));
-  }, [filtered]);
+  }, [filtered, tLabels]);
 
   const summary = useMemo(() => {
     let reorder = 0;
@@ -236,10 +238,9 @@ export default function InventarioPage() {
     <div className="shell inv-page">
       <header className="inv-hero">
         <div>
-          <h1 className="section-title">Inventario</h1>
-          <p className="section-sub">
-            Stock por categoría con barra según el <strong>pack de compra</strong> (100%). La
-            producción descuenta; Hablar / chat también actualiza.
+          <h1 className="section-title">{t("title")}</h1>
+          <p className="section-sub" style={{ marginBottom: 0 }}>
+            {t("subtitle")}
           </p>
         </div>
         <div className="inv-hero-actions">
@@ -314,7 +315,7 @@ export default function InventarioPage() {
               className={catFilter === c ? "active" : ""}
               onClick={() => setCatFilter(c)}
             >
-              {INSUMO_CATEGORIA_LABEL[c]}
+              {tLabels(`insumoCategoria.${c}`)}
               {attn > 0 && <em className="inv-cat-attn">{attn}</em>}
             </button>
           );
@@ -351,7 +352,7 @@ export default function InventarioPage() {
               >
                 {INSUMO_CATEGORIAS.map((c) => (
                   <option key={c} value={c}>
-                    {INSUMO_CATEGORIA_LABEL[c]}
+                    {tLabels(`insumoCategoria.${c}`)}
                   </option>
                 ))}
               </select>

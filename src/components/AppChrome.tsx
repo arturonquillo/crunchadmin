@@ -2,20 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
-
-const DRAWER_LINKS = [
-  { href: "/pendientes", label: "Pendientes", hint: "Trabajo por zona" },
-  {
-    href: "/recetas",
-    label: "Fichas técnicas",
-    hint: "Recetas y escalado",
-  },
-  { href: "/produccion", label: "Producción", hint: "Batches y descuentos" },
-  { href: "/menu", label: "Menú de ventas", hint: "Plataformas" },
-  { href: "/chat", label: "Chat", hint: "Hablar e historial" },
-  { href: "/ajustes", label: "Ajustes", hint: "Preferencias (stub)" },
-];
+import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 
 function IconMenu({ open }: { open?: boolean }) {
   return (
@@ -81,11 +70,21 @@ function IconMic() {
 }
 
 export function AppChrome({ children }: { children: React.ReactNode }) {
+  const t = useTranslations("Nav");
   const pathname = usePathname();
   const router = useRouter();
   const isHome = pathname === "/";
   const isChat = pathname.startsWith("/chat");
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const drawerLinks = [
+    { href: "/pendientes", label: t("pendientes"), hint: t("pendientesHint") },
+    { href: "/recetas", label: t("fichas"), hint: t("fichasHint") },
+    { href: "/produccion", label: t("produccion"), hint: t("produccionHint") },
+    { href: "/menu", label: t("menuVentas"), hint: t("menuHint") },
+    { href: "/chat", label: t("chat"), hint: t("chatHint") },
+    { href: "/ajustes", label: t("ajustes"), hint: t("ajustesHint") },
+  ];
 
   useEffect(() => {
     setDrawerOpen(false);
@@ -108,11 +107,12 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
           <span className="brand-mark" aria-hidden />
           <span className="brand-name">Crunchadmin</span>
         </Link>
+        <LocaleSwitcher />
       </header>
 
       <div className="app-main">{children}</div>
 
-      <nav className="bottom-nav" aria-label="Principal">
+      <nav className="bottom-nav" aria-label={t("aria")}>
         <button
           type="button"
           className={`bn-item ${drawerOpen ? "active" : ""}`}
@@ -121,24 +121,24 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
           aria-controls="menu-drawer"
         >
           <IconMenu open={drawerOpen} />
-          <span>Menú</span>
+          <span>{t("menu")}</span>
         </button>
 
         <Link href="/" className={`bn-item ${isHome ? "active" : ""}`}>
           <IconHome />
-          <span>Inicio</span>
+          <span>{t("home")}</span>
         </Link>
 
         <button
           type="button"
           className={`bn-speak ${isChat ? "active" : ""}`}
           onClick={openHablar}
-          aria-label="Hablar — nueva conversación"
+          aria-label={t("hablarAria")}
         >
           <span className="bn-speak-inner">
             <IconMic />
           </span>
-          <span className="bn-speak-label">Hablar</span>
+          <span className="bn-speak-label">{t("hablar")}</span>
         </button>
 
         <Link
@@ -146,7 +146,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
           className={`bn-item ${pathname.startsWith("/inventario") ? "active" : ""}`}
         >
           <IconBox />
-          <span>Inventario</span>
+          <span>{t("inventario")}</span>
         </Link>
       </nav>
 
@@ -161,14 +161,14 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
         aria-hidden={!drawerOpen}
       >
         <div className="menu-drawer-head">
-          <p className="menu-drawer-kicker">Menú</p>
-          <h2>Destinos</h2>
+          <p className="menu-drawer-kicker">{t("menuDrawer")}</p>
+          <h2>{t("destinations")}</h2>
           <button type="button" className="btn ghost" onClick={() => setDrawerOpen(false)}>
-            Cerrar
+            {t("close")}
           </button>
         </div>
         <ul className="menu-drawer-list">
-          {DRAWER_LINKS.map((l) => {
+          {drawerLinks.map((l) => {
             const active = pathname === l.href || pathname.startsWith(`${l.href}/`);
             return (
               <li key={l.href}>
