@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { ChatMarkdown } from "@/components/ChatMarkdown";
 
 type Attachment = {
   id: string;
@@ -93,7 +94,9 @@ export default function ChatPage() {
                 {m.role === "USER" ? "Tú" : "Asistente"} ·{" "}
                 {new Date(m.createdAt).toLocaleTimeString("es")}
               </span>
-              <div style={{ whiteSpace: "pre-wrap" }}>{m.content}</div>
+              <div className="hablar-bubble-body">
+                <ChatMarkdown>{m.content}</ChatMarkdown>
+              </div>
               {m.attachments && m.attachments.length > 0 && (
                 <div className="chat-attach">
                   {m.attachments.map((a) => (

@@ -1125,9 +1125,65 @@ table.data th {
 }
 
 .hablar-bubble-body {
-  white-space: pre-wrap;
   font-size: 0.98rem;
-  line-height: 1.4;
+  line-height: 1.45;
+}
+
+.chat-md {
+  overflow-wrap: anywhere;
+}
+
+.chat-md > :first-child {
+  margin-top: 0;
+}
+
+.chat-md > :last-child {
+  margin-bottom: 0;
+}
+
+.chat-md p {
+  margin: 0 0 0.55em;
+}
+
+.chat-md strong,
+.chat-md-strong {
+  font-weight: 700;
+}
+
+.chat-md em {
+  font-style: italic;
+}
+
+.chat-md ul,
+.chat-md ol {
+  margin: 0.35em 0 0.55em;
+  padding-left: 1.25em;
+}
+
+.chat-md li {
+  margin: 0.15em 0;
+}
+
+.chat-md li > p {
+  margin: 0;
+}
+
+.chat-md a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.chat-md code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+  padding: 0.05em 0.3em;
+  border-radius: 4px;
+  background: rgba(26, 34, 24, 0.08);
+}
+
+.hablar-bubble.user .chat-md code {
+  background: rgba(247, 244, 234, 0.14);
 }
 
 .hablar-typing-dots {

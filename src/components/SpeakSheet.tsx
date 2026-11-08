@@ -18,6 +18,7 @@ import {
   type ChoiceWidget,
 } from "@/lib/assistant/widgets";
 import { VoiceMeter, formatElapsed } from "@/components/VoiceMeter";
+import { ChatMarkdown } from "@/components/ChatMarkdown";
 import {
   startLiveTranscription,
   type LiveSession,
@@ -628,7 +629,9 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
                     minute: "2-digit",
                   })}
                 </span>
-                <div className="hablar-bubble-body">{m.content}</div>
+                <div className="hablar-bubble-body">
+                  <ChatMarkdown>{m.content}</ChatMarkdown>
+                </div>
                 {m.attachments && m.attachments.length > 0 && (
                   <div className="chat-attach">
                     {m.attachments.map((a) => (
