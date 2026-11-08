@@ -85,7 +85,7 @@ export default function RecetasPage() {
         </div>
         <div className="page-head-actions">
           <button type="button" className="btn" onClick={() => setShowForm(true)}>
-            + Nueva
+            {t("new")}
           </button>
         </div>
       </div>
@@ -93,9 +93,9 @@ export default function RecetasPage() {
       <section className="panel" style={{ marginTop: "0.85rem" }}>
         {recetas.length === 0 ? (
           <p className="empty">
-            Sin recetas aún.{" "}
+            {t("empty")}{" "}
             <button type="button" className="btn ghost" onClick={() => setShowForm(true)}>
-              Crear la primera
+              {t("createFirst")}
             </button>
           </p>
         ) : (
@@ -107,14 +107,14 @@ export default function RecetasPage() {
                   <span className="list-card-meta">
                     {r.yieldQty != null
                       ? `${r.yieldQty} ${r.yieldUnit ?? ""}${r.yieldLabel ? ` · ${r.yieldLabel}` : ""}`
-                      : "Sin rendimiento"}
+                      : t("noYield")}
                     {" · "}
-                    {r.versions.length} vers.
+                    {t("versionsShort", { count: r.versions.length })}
                   </span>
                   {r.notes && <span className="list-card-note">{r.notes}</span>}
                 </div>
                 <Link className="btn secondary" href={`/recetas/${r.id}`}>
-                  Abrir
+                  {t("open")}
                 </Link>
               </li>
             ))}
@@ -124,14 +124,14 @@ export default function RecetasPage() {
 
       <FormSheet
         open={showForm}
-        title="Nueva receta"
-        kicker="Ficha técnica"
+        title={t("newTitle")}
+        kicker={t("sheetKicker")}
         onClose={() => setShowForm(false)}
       >
         <form onSubmit={onCreate}>
           <div className="form-grid">
             <div className="field" style={{ gridColumn: "1 / -1" }}>
-              <label htmlFor="rname">Nombre</label>
+              <label htmlFor="rname">{t("fieldName")}</label>
               <input
                 id="rname"
                 required
@@ -141,7 +141,7 @@ export default function RecetasPage() {
               />
             </div>
             <div className="field">
-              <label htmlFor="yq">Rendimiento</label>
+              <label htmlFor="yq">{t("fieldYield")}</label>
               <input
                 id="yq"
                 type="number"
@@ -151,7 +151,7 @@ export default function RecetasPage() {
               />
             </div>
             <div className="field">
-              <label htmlFor="yu">Unidad</label>
+              <label htmlFor="yu">{t("fieldUnit")}</label>
               <input
                 id="yu"
                 value={yieldUnit}
@@ -159,16 +159,16 @@ export default function RecetasPage() {
               />
             </div>
             <div className="field">
-              <label htmlFor="yl">Etiqueta yield</label>
+              <label htmlFor="yl">{t("fieldYieldLabel")}</label>
               <input
                 id="yl"
-                placeholder="mayonesa"
+                placeholder={t("yieldPlaceholder")}
                 value={yieldLabel}
                 onChange={(e) => setYieldLabel(e.target.value)}
               />
             </div>
             <div className="field" style={{ gridColumn: "1 / -1" }}>
-              <label htmlFor="lines">Líneas (nombre,cantidad,unidad[,gusto])</label>
+              <label htmlFor="lines">{t("fieldLines")}</label>
               <textarea
                 id="lines"
                 value={linesText}
@@ -180,7 +180,7 @@ export default function RecetasPage() {
           {error && <p className="error">{error}</p>}
           <div className="form-actions">
             <button className="btn" type="submit">
-              Crear receta
+              {t("create")}
             </button>
           </div>
         </form>

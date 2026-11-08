@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { PLATAFORMA_LABEL, type Plataforma } from "@/lib/labels";
+import { useTranslations } from "next-intl";
+import { PLATAFORMAS, type Plataforma } from "@/lib/labels";
 
 type Spec = {
   id: string;
@@ -21,6 +22,9 @@ type MenuItem = {
 };
 
 export default function MenuPage() {
+  const t = useTranslations("Menu");
+  const tc = useTranslations("Common");
+  const tl = useTranslations("Labels");
   const [items, setItems] = useState<MenuItem[]>([]);
   const [tab, setTab] = useState<Plataforma | "TODAS">("TODAS");
 
@@ -31,7 +35,7 @@ export default function MenuPage() {
       .catch(console.error);
   }, []);
 
-  const platforms: Plataforma[] = ["FOODIE", "TIENDA_PROPIA"];
+  const platforms = [...PLATAFORMAS];
 
   const filtered = useMemo(() => {
     if (tab === "TODAS") return items;
@@ -42,11 +46,8 @@ export default function MenuPage() {
 
   return (
     <div className="shell">
-      <h1 className="section-title">Menú</h1>
-      <p className="section-sub">
-        Menú base con especificaciones por plataforma. Pestañas: Foodie y tienda
-        propia.
-      </p>
+      <h1 className="section-title">{t("title")}</h1>
+      <p className="section-sub">{t("subtitle")}</p>
 
       <div className="tabs" role="tablist">
         <button
@@ -54,7 +55,7 @@ export default function MenuPage() {
           className={tab === "TODAS" ? "tab active" : "tab"}
           onClick={() => setTab("TODAS")}
         >
-          Todas
+          {tc("all")}
         </button>
         {platforms.map((p) => (
           <button
@@ -63,23 +64,23 @@ export default function MenuPage() {
             className={tab === p ? "tab active" : "tab"}
             onClick={() => setTab(p)}
           >
-            {PLATAFORMA_LABEL[p]}
+            {tl(`plataforma.${p}`)}
           </button>
         ))}
       </div>
 
       <section className="panel">
         {filtered.length === 0 ? (
-          <p className="empty">Sin ítems de menú.</p>
+          <p className="empty">{t("empty")}</p>
         ) : (
           <div className="table-wrap">
             <table className="data">
               <thead>
                 <tr>
-                  <th>Ítem base</th>
-                  <th>Receta</th>
+                  <th>{t("colBase")}</th>
+                  <th>{t("colRecipe")}</th>
                   {platforms.map((p) => (
-                    <th key={p}>{PLATAFORMA_LABEL[p]}</th>
+                    <th key={p}>{tl(`plataforma.${p}`)}</th>
                   ))}
                 </tr>
               </thead>
@@ -94,7 +95,7 @@ export default function MenuPage() {
                         </div>
                       )}
                     </td>
-                    <td>{item.receta?.name ?? "—"}</td>
+                    <td>{item.receta?.name ?? tc("dash")}</td>
                     {platforms.map((p) => {
                       const spec = item.platformSpecs.find(
                         (s) => s.platform === p
@@ -102,7 +103,7 @@ export default function MenuPage() {
                       if (!spec) {
                         return (
                           <td key={p}>
-                            <span className="empty">Sin spec</span>
+                            <span className="empty">{t("noSpec")}</span>
                           </td>
                         );
                       }
@@ -114,11 +115,14 @@ export default function MenuPage() {
                         <td key={p} style={dim}>
                           <div>{spec.displayName || item.name}</div>
                           <div>
-                            {spec.price != null ? `$${spec.price}` : "—"} ·{" "}
+                            {spec.price != null ? `$${spec.price}` : tc("dash")}{" "}
+                            ·{" "}
                             {spec.available ? (
-                              <span className="badge">Disponible</span>
+                              <span className="badge">{t("available")}</span>
                             ) : (
-                              <span className="badge warn">No disponible</span>
+                              <span className="badge warn">
+                                {t("unavailable")}
+                              </span>
                             )}
                           </div>
                           {spec.channelNotes && (
