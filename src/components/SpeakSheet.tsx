@@ -17,6 +17,7 @@ import {
   type ConfirmWidget,
   type ChoiceWidget,
 } from "@/lib/assistant/widgets";
+import { VoiceMeter, formatElapsed } from "@/components/VoiceMeter";
 
 function IconMic() {
   return (
@@ -55,6 +56,14 @@ function IconClose() {
         strokeWidth="2"
         strokeLinecap="round"
       />
+    </svg>
+  );
+}
+
+function IconStop() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <rect x="6" y="6" width="12" height="12" rx="2" />
     </svg>
   );
 }
@@ -165,11 +174,14 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
   const [whisperOk, setWhisperOk] = useState<boolean | null>(null);
   const [recorderSupport] = useState(() => detectRecorderSupport());
   const [booting, setBooting] = useState(true);
+  const [liveStream, setLiveStream] = useState<MediaStream | null>(null);
+  const [elapsedMs, setElapsedMs] = useState(0);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const mimeRef = useRef<string>("");
+  const startedAtRef = useRef<number>(0);
   const baseTextRef = useRef("");
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -217,7 +229,22 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
   const releaseStream = useCallback(() => {
     mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
     mediaStreamRef.current = null;
+    setLiveStream(null);
   }, []);
+
+  useEffect(() => {
+    if (!recording) return;
+    startedAtRef.current = Date.now();
+    setElapsedMs(0);
+    const id = window.setInterval(() => {
+      setElapsedMs(Date.now() - startedAtRef.current);
+    }, 200);
+    return () => window.clearInterval(id);
+  }, [recording]);
+
+  useEffect(() => {
+    if (!recording && !transcribing) setElapsedMs(0);
+  }, [recording, transcribing]);
 
   const appendTranscript = useCallback((said: string) => {
     const piece = said.trim();
@@ -293,6 +320,7 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
         },
       });
       mediaStreamRef.current = stream;
+      setLiveStream(stream);
       chunksRef.current = [];
       const mime = recorderSupport.mimeType || "";
       mimeRef.current = mime;
@@ -316,7 +344,7 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
         releaseStream();
         mediaRecorderRef.current = null;
         if (blob.size < 400) {
-          setStatus("Grabación muy corta. Mantené el mic un segundo y hablá.");
+          setStatus("Grabación muy corta. Hablá un segundo más y usá Stop.");
           return;
         }
         void transcribeBlob(blob, type);
@@ -326,7 +354,7 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
       // timeslice helps some iOS builds flush audio chunks
       recorder.start(250);
       setRecording(true);
-      setStatus("Grabando… tocá el mic otra vez para cortar");
+      setStatus(null);
     } catch (err) {
       releaseStream();
       const name = err instanceof DOMException ? err.name : "";
@@ -564,7 +592,53 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
             {micHint}
           </p>
         )}
-        {status && <p className="hablar-status">{status}</p>}
+        {status && !recording && <p className="hablar-status">{status}</p>}
+
+        {(recording || transcribing) && (
+          <div
+            className={`hablar-rec-dock ${transcribing ? "is-transcribing" : "is-recording"}`}
+            role="status"
+            aria-live="polite"
+          >
+            {recording ? (
+              <>
+                <button
+                  type="button"
+                  className="hablar-stop-btn"
+                  aria-label="Detener grabación"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    stopRecording();
+                  }}
+                >
+                  <IconStop />
+                </button>
+                <div className="hablar-rec-main">
+                  <div className="hablar-rec-top">
+                    <span className="hablar-rec-dot" aria-hidden />
+                    <span className="hablar-rec-label">Recording</span>
+                    <span className="hablar-rec-timer">{formatElapsed(elapsedMs)}</span>
+                  </div>
+                  <VoiceMeter stream={liveStream} active={recording} />
+                </div>
+              </>
+            ) : (
+              <div className="hablar-rec-main">
+                <div className="hablar-rec-top">
+                  <span className="hablar-rec-label">Transcribiendo…</span>
+                  <span className="hablar-rec-timer">{formatElapsed(elapsedMs)}</span>
+                </div>
+                <div className="hablar-rec-pulse" aria-hidden>
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <form className="hablar-composer" onSubmit={onSubmit}>
           <button
@@ -593,9 +667,9 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
             rows={1}
             placeholder={
               recording
-                ? "Grabando…"
+                ? "Hablá… usá Stop cuando termines"
                 : transcribing
-                  ? "Transcribiendo…"
+                  ? "Transcribiendo con IA…"
                   : "Escribí o tocá el mic…"
             }
             onChange={(e) => {

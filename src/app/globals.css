@@ -1213,6 +1213,115 @@ table.data th {
   color: var(--accent-deep);
 }
 
+.hablar-rec-dock {
+  margin: 0 0.85rem 0.45rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: rgba(26, 34, 24, 0.92);
+  color: #f7f4ea;
+  box-shadow: 0 10px 28px rgba(18, 24, 16, 0.22);
+  animation: rise 200ms ease-out both;
+}
+
+.hablar-rec-dock.is-transcribing {
+  background: rgba(47, 61, 42, 0.94);
+}
+
+.hablar-stop-btn {
+  appearance: none;
+  border: none;
+  flex: 0 0 auto;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: #e11d48;
+  color: #fff;
+  cursor: pointer;
+  touch-action: manipulation;
+  box-shadow: 0 0 0 4px rgba(225, 29, 72, 0.22);
+}
+
+.hablar-stop-btn:active {
+  transform: scale(0.96);
+}
+
+.hablar-rec-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.hablar-rec-top {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.82rem;
+}
+
+.hablar-rec-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: #fb7185;
+  animation: pulse-mark 1.1s ease-in-out infinite;
+}
+
+.hablar-rec-label {
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.hablar-rec-timer {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  opacity: 0.92;
+}
+
+.voice-meter {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 1.7rem;
+  width: 100%;
+}
+
+.voice-meter-bar {
+  flex: 1 1 0;
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(180deg, #b7d59a 0%, #5a7a48 100%);
+  transform-origin: center;
+  will-change: transform;
+}
+
+.hablar-rec-pulse {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 1.5rem;
+}
+
+.hablar-rec-pulse span {
+  width: 0.35rem;
+  height: 100%;
+  border-radius: 99px;
+  background: rgba(247, 244, 234, 0.55);
+  animation: pulse-mark 1s ease-in-out infinite;
+}
+
+.hablar-rec-pulse span:nth-child(2) { animation-delay: 0.1s; }
+.hablar-rec-pulse span:nth-child(3) { animation-delay: 0.2s; }
+.hablar-rec-pulse span:nth-child(4) { animation-delay: 0.3s; }
+.hablar-rec-pulse span:nth-child(5) { animation-delay: 0.4s; }
+
 .hablar-composer {
   flex: 0 0 auto;
   display: grid;
