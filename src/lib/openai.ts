@@ -140,3 +140,57 @@ async function runWithTools(
     toolResults: collected,
   };
 }
+
+/** Speech-to-text via OpenAI Whisper (backend mic path for iOS / unreliable Web Speech). */
+export async function transcribeAudio(params: {
+  bytes: Buffer;
+  filename: string;
+  mimeType?: string;
+  language?: string;
+}): Promise<{ text: string; stub?: boolean; error?: string }> {
+  const client = getOpenAIClient();
+  if (!client) {
+    return {
+      text: "",
+      stub: true,
+      error:
+        "Falta OPENAI_API_KEY: no puedo transcribir audio en el servidor. Configurá la clave o escribí el mensaje.",
+    };
+  }
+
+  const model = process.env.OPENAI_TRANSCRIBE_MODEL || "whisper-1";
+  const file = new File([new Uint8Array(params.bytes)], params.filename, {
+    type: params.mimeType || "application/octet-stream",
+  });
+
+  try {
+    const result = await client.audio.transcriptions.create({
+      file,
+      model,
+      language: params.language || "es",
+      // Keep punctuation; Spanish dictation for Hablar
+      response_format: "json",
+    });
+    const text = (result.text || "").trim();
+    return { text };
+  } catch (err) {
+    const status = (err as { status?: number })?.status;
+    const code = (err as { code?: string })?.code;
+    if (
+      status === 429 ||
+      code === "insufficient_quota" ||
+      code === "credit_balance_exhausted"
+    ) {
+      return {
+        text: "",
+        error:
+          "OpenAI sin créditos para Whisper. Agregá billing y reintentá, o escribí el mensaje.",
+      };
+    }
+    const msg = err instanceof Error ? err.message : "Error desconocido";
+    return {
+      text: "",
+      error: `No pude transcribir el audio (${status ?? "error"}): ${msg.slice(0, 160)}`,
+    };
+  }
+}

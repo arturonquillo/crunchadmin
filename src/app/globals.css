@@ -1261,9 +1261,20 @@ table.data th {
   animation: pulse-mark 1.3s ease-in-out infinite;
 }
 
+.hablar-mic.transcribing {
+  background: #5a7a48;
+  color: #fff;
+  opacity: 1;
+}
+
 .hablar-mic:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.hablar-mic.transcribing:disabled {
+  opacity: 0.85;
+  cursor: wait;
 }
 
 .hablar-send {

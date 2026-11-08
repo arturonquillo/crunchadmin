@@ -8,11 +8,9 @@ import {
   useState,
 } from "react";
 import {
-  detectSpeechSupport,
-  preferredSpeechLang,
-  speechErrorMessage,
-  type SpeechRecognitionLike,
-} from "@/lib/speech";
+  detectRecorderSupport,
+  extensionForMime,
+} from "@/lib/media-record";
 import {
   widgetsFromActionsJson,
   type ChatWidget,
@@ -160,33 +158,32 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [pendingCodes, setPendingCodes] = useState<Set<string>>(new Set());
   const [text, setText] = useState("");
-  const [interim, setInterim] = useState("");
-  const [listening, setListening] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
-  const [support] = useState(() => detectSpeechSupport());
+  const [whisperOk, setWhisperOk] = useState<boolean | null>(null);
+  const [recorderSupport] = useState(() => detectRecorderSupport());
   const [booting, setBooting] = useState(true);
 
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-  const stoppingRef = useRef(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<BlobPart[]>([]);
+  const mimeRef = useRef<string>("");
   const baseTextRef = useRef("");
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const hydrateMessage = useCallback(
-    (m: ChatMessage, livePending: Set<string>): ChatMessage => {
-      const widgets = (m.widgets && m.widgets.length > 0
+  const micReady = Boolean(whisperOk && recorderSupport.ok);
+  const micBusy = recording || transcribing;
+
+  const hydrateMessage = useCallback((m: ChatMessage): ChatMessage => {
+    const widgets =
+      m.widgets && m.widgets.length > 0
         ? m.widgets
-        : widgetsFromActionsJson(m.actionsJson, m.id)
-      ).map((w) => {
-        if (w.type !== "confirm") return w;
-        // Mark spent if code no longer pending
-        return w;
-      });
-      return { ...m, widgets };
-    },
-    []
-  );
+        : widgetsFromActionsJson(m.actionsJson, m.id);
+    return { ...m, widgets };
+  }, []);
 
   const loadHistory = useCallback(async () => {
     const res = await fetch("/api/chat");
@@ -195,124 +192,179 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
       (data.pending || []).map((p: { code: string }) => String(p.code).toUpperCase())
     );
     setPendingCodes(pending);
-    const msgs: ChatMessage[] = (data.messages || []).map((m: ChatMessage) =>
-      hydrateMessage(m, pending)
-    );
-    setMessages(msgs);
+    setMessages((data.messages || []).map((m: ChatMessage) => hydrateMessage(m)));
   }, [hydrateMessage]);
 
   useEffect(() => {
-    loadHistory()
+    Promise.all([
+      loadHistory(),
+      fetch("/api/transcribe")
+        .then((r) => r.json())
+        .then((d) => setWhisperOk(Boolean(d.configured)))
+        .catch(() => setWhisperOk(false)),
+    ])
       .catch((err) => setStatus(String(err)))
       .finally(() => setBooting(false));
   }, [loadHistory]);
 
   useEffect(() => {
-    logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, sending]);
+    logRef.current?.scrollTo({
+      top: logRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages, sending, transcribing]);
 
-  const stopMic = useCallback(() => {
-    stoppingRef.current = true;
-    const rec = recognitionRef.current;
-    recognitionRef.current = null;
-    try {
-      rec?.stop();
-    } catch {
-      try {
-        rec?.abort();
-      } catch {
-        /* ignore */
-      }
-    }
-    setListening(false);
-    setInterim("");
+  const releaseStream = useCallback(() => {
+    mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+    mediaStreamRef.current = null;
   }, []);
 
-  const startMic = useCallback(() => {
-    setStatus(null);
-    const current = detectSpeechSupport();
-    if (!current.ok || !current.ctor) {
-      setStatus(current.reason || "Dictado no disponible.");
-      return;
-    }
-    if (recognitionRef.current) {
-      stoppingRef.current = true;
+  const appendTranscript = useCallback((said: string) => {
+    const piece = said.trim();
+    if (!piece) return;
+    const next = (baseTextRef.current ? `${baseTextRef.current} ` : "") + piece;
+    baseTextRef.current = next.trim();
+    setText(baseTextRef.current);
+  }, []);
+
+  const transcribeBlob = useCallback(
+    async (blob: Blob, mimeType: string) => {
+      setTranscribing(true);
+      setStatus("Transcribiendo con IA…");
       try {
-        recognitionRef.current.abort();
+        const ext = extensionForMime(mimeType || blob.type);
+        const form = new FormData();
+        form.append("audio", blob, `hablar.${ext}`);
+        form.append("language", "es");
+        const res = await fetch("/api/transcribe", { method: "POST", body: form });
+        const data = await res.json();
+        if (!res.ok) {
+          setStatus(data.error || "No se pudo transcribir.");
+          return;
+        }
+        if (!data.text) {
+          setStatus("No escuché texto claro. Probá de nuevo cerca del mic.");
+          return;
+        }
+        appendTranscript(String(data.text));
+        setStatus("Texto listo — podés editar o Enviar.");
+      } catch (err) {
+        setStatus(String(err));
+      } finally {
+        setTranscribing(false);
+      }
+    },
+    [appendTranscript]
+  );
+
+  const stopRecording = useCallback(() => {
+    const rec = mediaRecorderRef.current;
+    if (rec && rec.state !== "inactive") {
+      try {
+        rec.stop();
       } catch {
         /* ignore */
       }
-      recognitionRef.current = null;
+    } else {
+      setRecording(false);
+      releaseStream();
     }
-    stoppingRef.current = false;
-    baseTextRef.current = text;
-    const recognition = new current.ctor();
-    recognition.lang = preferredSpeechLang();
-    recognition.interimResults = true;
-    recognition.continuous = true;
-    recognition.maxAlternatives = 1;
+  }, [releaseStream]);
 
-    recognition.onstart = () => {
-      setListening(true);
-      setStatus("Escuchando…");
-    };
-    recognition.onaudiostart = () => setStatus("Micrófono activo…");
-    recognition.onerror = (ev) => {
-      if (stoppingRef.current || ev.error === "aborted") return;
-      const msg = speechErrorMessage(ev.error);
-      if (msg) setStatus(msg);
-      setListening(false);
-      setInterim("");
-    };
-    recognition.onresult = (event) => {
-      let finalChunk = "";
-      let interimChunk = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const res = event.results[i];
-        const piece = res[0]?.transcript || "";
-        if (res.isFinal) finalChunk += piece;
-        else interimChunk += piece;
-      }
-      if (finalChunk) {
-        const next =
-          (baseTextRef.current ? `${baseTextRef.current} ` : "") + finalChunk.trim();
-        baseTextRef.current = next.trim();
-        setText(baseTextRef.current);
-        setInterim("");
-        setStatus(null);
-      } else {
-        setInterim(interimChunk);
-      }
-    };
-    recognition.onend = () => {
-      recognitionRef.current = null;
-      setListening(false);
-      setInterim("");
-    };
+  const startRecording = useCallback(async () => {
+    setStatus(null);
+    if (!whisperOk) {
+      setStatus(
+        "Transcripción por IA no disponible (falta OPENAI_API_KEY). Escribí el mensaje."
+      );
+      return;
+    }
+    if (!recorderSupport.ok) {
+      setStatus(recorderSupport.reason || "Grabación no disponible.");
+      return;
+    }
 
-    recognitionRef.current = recognition;
     try {
-      recognition.start();
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          channelCount: 1,
+        },
+      });
+      mediaStreamRef.current = stream;
+      chunksRef.current = [];
+      const mime = recorderSupport.mimeType || "";
+      mimeRef.current = mime;
+      const recorder = mime
+        ? new MediaRecorder(stream, { mimeType: mime })
+        : new MediaRecorder(stream);
+
+      recorder.ondataavailable = (ev) => {
+        if (ev.data && ev.data.size > 0) chunksRef.current.push(ev.data);
+      };
+      recorder.onerror = () => {
+        setStatus("Error al grabar audio.");
+        setRecording(false);
+        releaseStream();
+      };
+      recorder.onstop = () => {
+        setRecording(false);
+        const type = mimeRef.current || recorder.mimeType || "audio/webm";
+        const blob = new Blob(chunksRef.current, { type });
+        chunksRef.current = [];
+        releaseStream();
+        mediaRecorderRef.current = null;
+        if (blob.size < 400) {
+          setStatus("Grabación muy corta. Mantené el mic un segundo y hablá.");
+          return;
+        }
+        void transcribeBlob(blob, type);
+      };
+
+      mediaRecorderRef.current = recorder;
+      // timeslice helps some iOS builds flush audio chunks
+      recorder.start(250);
+      setRecording(true);
+      setStatus("Grabando… tocá el mic otra vez para cortar");
     } catch (err) {
-      setListening(false);
-      setStatus(err instanceof Error ? err.message : "No se pudo iniciar el mic.");
+      releaseStream();
+      const name = err instanceof DOMException ? err.name : "";
+      if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+        setStatus(
+          "Permiso de micrófono denegado. Activá el mic en Ajustes → Safari y reintentá."
+        );
+      } else {
+        setStatus(
+          err instanceof Error ? err.message : "No se pudo abrir el micrófono."
+        );
+      }
+      setRecording(false);
     }
-  }, [text]);
+  }, [whisperOk, recorderSupport, releaseStream, transcribeBlob]);
+
+  const toggleMic = useCallback(() => {
+    if (transcribing) return;
+    if (recording) stopRecording();
+    else void startRecording();
+  }, [transcribing, recording, stopRecording, startRecording]);
 
   useEffect(() => {
     return () => {
-      stoppingRef.current = true;
       try {
-        recognitionRef.current?.abort();
+        mediaRecorderRef.current?.stop();
       } catch {
         /* ignore */
       }
+      releaseStream();
     };
-  }, []);
+  }, [releaseStream]);
 
   useEffect(() => {
     if (!autoStart) return;
-    const t = window.setTimeout(() => startMic(), 0);
+    const t = window.setTimeout(() => {
+      void startRecording();
+    }, 0);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStart]);
@@ -321,10 +373,9 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
     async (payload: string) => {
       const clean = payload.trim();
       if (!clean || sending) return;
-      stopMic();
+      if (recording) stopRecording();
       setSending(true);
       setStatus(null);
-      // Optimistic user bubble
       const tempId = `local-${Date.now()}`;
       setMessages((prev) => [
         ...prev,
@@ -337,7 +388,6 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
       ]);
       setText("");
       baseTextRef.current = "";
-      setInterim("");
       try {
         const res = await fetch("/api/chat", {
           method: "POST",
@@ -359,13 +409,12 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
         inputRef.current?.focus();
       }
     },
-    [sending, stopMic, loadHistory]
+    [sending, recording, stopRecording, loadHistory]
   );
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    const payload = (text + (interim ? ` ${interim}` : "")).trim();
-    await sendMessage(payload);
+    await sendMessage(text);
   }
 
   async function onConfirmWidget(code: string) {
@@ -392,6 +441,13 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
     }
   }
 
+  const micHint =
+    whisperOk === false
+      ? "Sin OPENAI_API_KEY no hay dictado por IA. Escribí el mensaje."
+      : !recorderSupport.ok
+        ? recorderSupport.reason || null
+        : null;
+
   return (
     <div
       className="hablar-root"
@@ -402,14 +458,14 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
       <div
         className="hablar-backdrop"
         onClick={() => {
-          stopMic();
+          stopRecording();
           onClose();
         }}
       />
       <div className="hablar-panel">
         <header className="hablar-head">
           <div className="hablar-head-text">
-            <p className="hablar-kicker">Asistente</p>
+            <p className="hablar-kicker">Asistente · Whisper</p>
             <h2>Hablar</h2>
           </div>
           <button
@@ -417,7 +473,7 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
             className="hablar-close"
             aria-label="Cerrar chat"
             onClick={() => {
-              stopMic();
+              stopRecording();
               onClose();
             }}
           >
@@ -431,7 +487,8 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
             <div className="hablar-empty">
               <p>Conversá con el sistema.</p>
               <p className="muted">
-                Ej.: «agrega 20 kg de harina» o «elimina todos los insumos».
+                Tocá el mic, hablá, tocá de nuevo: la IA pasa tu voz a texto
+                (mejor que el dictado nativo de iPhone).
               </p>
             </div>
           )}
@@ -502,29 +559,29 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
           )}
         </div>
 
-        {!support.ok && (
+        {micHint && (
           <p className="speak-unsupported hablar-banner" role="status">
-            {support.reason}
+            {micHint}
           </p>
         )}
         {status && <p className="hablar-status">{status}</p>}
-        {interim && (
-          <p className="hablar-interim" aria-live="polite">
-            <em>{interim}</em>
-          </p>
-        )}
 
         <form className="hablar-composer" onSubmit={onSubmit}>
           <button
             type="button"
-            className={`hablar-mic ${listening ? "listening" : ""}`}
-            aria-label={listening ? "Detener dictado" : "Dictar"}
-            aria-pressed={listening}
-            disabled={!support.ok}
+            className={`hablar-mic ${recording ? "listening" : ""} ${transcribing ? "transcribing" : ""}`}
+            aria-label={
+              recording
+                ? "Detener grabación"
+                : transcribing
+                  ? "Transcribiendo"
+                  : "Grabar y transcribir"
+            }
+            aria-pressed={recording}
+            disabled={!micReady || transcribing}
             onClick={(e) => {
               e.preventDefault();
-              if (listening) stopMic();
-              else startMic();
+              toggleMic();
             }}
           >
             <IconMic />
@@ -534,7 +591,13 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
             className="hablar-input"
             value={text}
             rows={1}
-            placeholder="Escribí o dictá…"
+            placeholder={
+              recording
+                ? "Grabando…"
+                : transcribing
+                  ? "Transcribiendo…"
+                  : "Escribí o tocá el mic…"
+            }
             onChange={(e) => {
               setText(e.target.value);
               baseTextRef.current = e.target.value;
@@ -542,14 +605,14 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                void sendMessage((text + (interim ? ` ${interim}` : "")).trim());
+                void sendMessage(text);
               }
             }}
           />
           <button
             type="submit"
             className="hablar-send"
-            disabled={sending || !(text.trim() || interim.trim())}
+            disabled={sending || micBusy || !text.trim()}
             aria-label="Enviar"
           >
             <IconSend />
