@@ -165,7 +165,7 @@ export default function RecetaDetailPage() {
       </p>
 
       <section className="panel">
-        <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Versiones</h2>
+        <h2 className="panel-title">Versiones</h2>
         <div className="field" style={{ maxWidth: 360, marginBottom: "1rem" }}>
           <label htmlFor="ver">Versión activa de consulta</label>
           <select
@@ -217,7 +217,7 @@ export default function RecetaDetailPage() {
       </section>
 
       <section className="panel">
-        <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>
+        <h2 className="panel-title">
           Calculadora de escalado
         </h2>
         <p className="section-sub" style={{ marginBottom: "1rem" }}>
@@ -349,7 +349,7 @@ export default function RecetaDetailPage() {
       </section>
 
       <section className="panel">
-        <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Historial</h2>
+        <h2 className="panel-title">Historial</h2>
         <div className="version-list">
           {receta.versions.map((v) => (
             <div key={v.id} className="version-item">
@@ -357,7 +357,7 @@ export default function RecetaDetailPage() {
                 v{v.number}
                 {v.label ? ` — ${v.label}` : ""}
               </strong>
-              <div style={{ color: "var(--muted)", fontSize: "0.85rem" }}>
+              <div style={{ color: "var(--muted)", fontSize: "var(--text-sm)" }}>
                 {new Date(v.createdAt).toLocaleString("es")}
                 {v.changelog ? ` · ${v.changelog}` : ""}
               </div>

@@ -282,7 +282,7 @@ export default function ProduccionPage() {
 
       {preview && (
         <section className="panel" style={{ marginTop: "1rem" }}>
-          <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>
+          <h2 className="panel-title">
             Vista previa · factor ×{preview.scale.factor}
           </h2>
           <p className="section-sub" style={{ marginTop: 0 }}>
@@ -363,7 +363,7 @@ export default function ProduccionPage() {
       )}
 
       <section className="panel" style={{ marginTop: "1rem" }}>
-        <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Historial</h2>
+        <h2 className="panel-title">Historial</h2>
         {history.length === 0 ? (
           <p className="empty">Todavía no hay producciones.</p>
         ) : (
