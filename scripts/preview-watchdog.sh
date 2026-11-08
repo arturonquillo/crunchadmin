@@ -3,7 +3,7 @@
 # Writes the latest public URL to the Project store docs file.
 set -u
 
-APP_DIR="${APP_DIR:-/workspace/crunchadmin}"
+APP_DIR="${APP_DIR:-/agent/repos/crunchadmin}"
 TMUX_CONF="${TMUX_CONF:-/exec-daemon/tmux.portal.conf}"
 URL_FILE="${URL_FILE:-/cursor/stores/self/docs/preview-url.md}"
 LOCAL_URL="http://127.0.0.1:3000"
