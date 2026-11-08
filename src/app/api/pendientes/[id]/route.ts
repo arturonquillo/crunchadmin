@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { CATEGORIAS, ESTADOS, PRIORIDADES } from "@/lib/labels";
+import { isRestaurantZone } from "@/lib/zones";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -30,6 +31,15 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       return NextResponse.json({ error: "Prioridad inválida" }, { status: 400 });
     }
     data.prioridad = body.prioridad;
+  }
+  if (body.zone != null) {
+    if (!isRestaurantZone(body.zone)) {
+      return NextResponse.json({ error: "Zona inválida" }, { status: 400 });
+    }
+    data.zone = body.zone;
+  }
+  if (body.anchorHint !== undefined) {
+    data.anchorHint = body.anchorHint ? String(body.anchorHint) : null;
   }
   if (body.dueDate !== undefined) {
     data.dueDate = body.dueDate ? new Date(body.dueDate) : null;

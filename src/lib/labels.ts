@@ -39,3 +39,26 @@ export const CATEGORIAS = Object.keys(CATEGORIA_LABEL) as PendienteCategoria[];
 export const ESTADOS = Object.keys(ESTADO_LABEL) as PendienteEstado[];
 export const PRIORIDADES = Object.keys(PRIORIDAD_LABEL) as Prioridad[];
 export const PLATAFORMAS = Object.keys(PLATAFORMA_LABEL) as Plataforma[];
+
+export type InsumoCategoria =
+  | "ACEITES"
+  | "CARNES"
+  | "LACTEOS"
+  | "SECOS"
+  | "ESPECIAS"
+  | "FRESCOS"
+  | "OTROS";
+
+export const INSUMO_CATEGORIA_LABEL: Record<InsumoCategoria, string> = {
+  ACEITES: "Aceites y grasas",
+  CARNES: "Carnes y aves",
+  LACTEOS: "Lácteos y huevos",
+  SECOS: "Secos y abarrotes",
+  ESPECIAS: "Especias y aromas",
+  FRESCOS: "Frescos y verduras",
+  OTROS: "Otros",
+};
+
+export const INSUMO_CATEGORIAS = Object.keys(
+  INSUMO_CATEGORIA_LABEL
+) as InsumoCategoria[];
