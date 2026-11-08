@@ -18,7 +18,7 @@ const body = Manrope({
 export const metadata: Metadata = {
   title: "Crunchadmin",
   description:
-    "Centro operativo del restaurante: pendientes, recetas con escalado, menú y asistente.",
+    "Centro operativo del restaurante: mapa 3D, pendientes por zona, recetas y menú.",
 };
 
 export default function RootLayout({
@@ -30,7 +30,7 @@ export default function RootLayout({
     <html lang="es">
       <body className={`${display.variable} ${body.variable} antialiased`}>
         <AppNav />
-        <main className="shell">{children}</main>
+        {children}
       </body>
     </html>
   );
