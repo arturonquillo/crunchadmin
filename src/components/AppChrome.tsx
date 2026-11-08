@@ -68,6 +68,24 @@ export function AppChrome({
     setPortalReady(true);
   }, []);
 
+  function HablarFab() {
+    if (isChat) return null;
+    return (
+      <button
+        type="button"
+        className="hablar-fab"
+        onClick={openHablar}
+        aria-label={t("hablarAria")}
+        data-testid="hablar-fab"
+      >
+        <span className="hablar-fab-inner">
+          <IconMic />
+        </span>
+        <span className="hablar-fab-label">{t("hablar")}</span>
+      </button>
+    );
+  }
+
   const drawerLinks = [
     { href: "/", label: t("home"), hint: t("homeHint") },
     { href: "/chat", label: t("chat"), hint: t("chatHint") },
@@ -115,23 +133,8 @@ export function AppChrome({
 
       <div className="app-main">{children}</div>
 
-      {/* Portal FAB to body so drei Html / WebGL compositing cannot cover it. */}
-      {portalReady &&
-        !isChat &&
-        createPortal(
-          <button
-            type="button"
-            className="hablar-fab"
-            onClick={openHablar}
-            aria-label={t("hablarAria")}
-          >
-            <span className="hablar-fab-inner">
-              <IconMic />
-            </span>
-            <span className="hablar-fab-label">{t("hablar")}</span>
-          </button>,
-          document.body
-        )}
+      {/* Portal-only FAB so WebGL/drei Html cannot cover it; mount after hydrate. */}
+      {portalReady ? createPortal(<HablarFab />, document.body) : null}
 
       <div
         className={`drawer-backdrop ${drawerOpen ? "open" : ""}`}

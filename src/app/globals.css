@@ -924,7 +924,8 @@ table.data th {
   pointer-events: auto;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  animation: fab-rise 420ms ease-out both;
+  opacity: 1;
+  /* No entrance animation — opacity keyframes were hiding the FAB in some mobile WebViews. */
 }
 
 .hablar-fab-inner {
