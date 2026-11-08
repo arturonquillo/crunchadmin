@@ -121,12 +121,12 @@ export default function ChatPage() {
             />
           </div>
           <div className="field">
-            <label htmlFor="chat-files">Adjuntos (imagen u otro archivo)</label>
+            <label htmlFor="chat-files">Adjuntos (foto, PDF, Excel o CSV)</label>
             <input
               id="chat-files"
               type="file"
               multiple
-              accept="image/*,audio/*,.pdf,.txt,.csv"
+              accept="image/*,audio/*,.pdf,.txt,.csv,.xls,.xlsx"
               onChange={(e) => setFiles(e.target.files)}
             />
           </div>

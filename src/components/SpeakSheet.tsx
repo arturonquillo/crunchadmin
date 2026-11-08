@@ -73,6 +73,20 @@ function IconStop() {
   );
 }
 
+function IconClip() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M21.4 11.6 12.1 20.9a6 6 0 0 1-8.5-8.5l9.3-9.3a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 1 1-2.8-2.8l8.2-8.2"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 type Attachment = {
   id: string;
   filename: string;
@@ -182,6 +196,7 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
   const [liveStream, setLiveStream] = useState<MediaStream | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [liveMode, setLiveMode] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -193,6 +208,7 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
   const preRecordTextRef = useRef("");
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const micReady = Boolean(openaiOk && recorderSupport.ok);
   const micBusy = recording || transcribing;
@@ -492,31 +508,68 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStart, openaiOk, recorderSupport.ok]);
 
+  const addFiles = useCallback((list: FileList | null) => {
+    if (!list || list.length === 0) return;
+    setPendingFiles((prev) => {
+      const next = [...prev];
+      for (const f of Array.from(list)) {
+        if (next.some((p) => p.name === f.name && p.size === f.size && p.lastModified === f.lastModified)) {
+          continue;
+        }
+        next.push(f);
+      }
+      return next.slice(0, 8);
+    });
+  }, []);
+
   const sendMessage = useCallback(
-    async (payload: string) => {
+    async (payload: string, files?: File[]) => {
+      const attach = files ?? pendingFiles;
       const clean = payload.trim();
-      if (!clean || sending) return;
+      if ((!clean && attach.length === 0) || sending) return;
       if (recording) stopRecording();
       setSending(true);
       setStatus(null);
       const tempId = `local-${Date.now()}`;
+      const preview =
+        clean ||
+        `Adjunto: ${attach.map((f) => f.name).join(", ")}`;
       setMessages((prev) => [
         ...prev,
         {
           id: tempId,
           role: "USER",
-          content: clean,
+          content: preview,
           createdAt: new Date().toISOString(),
+          attachments: attach.map((f, i) => ({
+            id: `${tempId}-f-${i}`,
+            filename: f.name,
+            mimeType: f.type || "application/octet-stream",
+            url: "",
+            kind: f.type.startsWith("image/") ? "image" : "file",
+          })),
         },
       ]);
       setText("");
       baseTextRef.current = "";
+      const sendingFiles = attach;
+      setPendingFiles([]);
+      if (fileRef.current) fileRef.current.value = "";
       try {
-        const res = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: clean, source: "speak" }),
-        });
+        let res: Response;
+        if (sendingFiles.length > 0) {
+          const form = new FormData();
+          form.set("message", clean);
+          form.set("source", "speak");
+          sendingFiles.forEach((f) => form.append("files", f));
+          res = await fetch("/api/chat", { method: "POST", body: form });
+        } else {
+          res = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: clean, source: "speak" }),
+          });
+        }
         const data = await res.json();
         if (!res.ok) {
           setStatus(data.error || "Error al enviar");
@@ -532,7 +585,7 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
         inputRef.current?.focus();
       }
     },
-    [sending, recording, stopRecording, loadHistory]
+    [sending, recording, stopRecording, loadHistory, pendingFiles]
   );
 
   async function onSubmit(e: FormEvent) {
@@ -610,7 +663,7 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
             <div className="hablar-empty">
               <p>Conversá con el sistema.</p>
               <p className="muted">
-                Tocá el mic y hablá: el texto aparece en vivo. Stop para cortar.
+                Tocá el mic y hablá, o adjuntá foto / PDF / Excel de una compra.
               </p>
             </div>
           )}
@@ -634,11 +687,15 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
                 </div>
                 {m.attachments && m.attachments.length > 0 && (
                   <div className="chat-attach">
-                    {m.attachments.map((a) => (
-                      <a key={a.id} href={a.url} target="_blank" rel="noreferrer">
-                        {a.filename}
-                      </a>
-                    ))}
+                    {m.attachments.map((a) =>
+                      a.url ? (
+                        <a key={a.id} href={a.url} target="_blank" rel="noreferrer">
+                          {a.kind === "image" ? `🖼 ${a.filename}` : a.filename}
+                        </a>
+                      ) : (
+                        <span key={a.id}>{a.filename}</span>
+                      )
+                    )}
                   </div>
                 )}
                 {!isUser &&
@@ -692,6 +749,40 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
           <p className="hablar-status">{status}</p>
         )}
 
+        {pendingFiles.length > 0 && (
+          <ul className="hablar-pending-files" aria-label="Archivos a enviar">
+            {pendingFiles.map((f, i) => (
+              <li key={`${f.name}-${f.size}-${i}`}>
+                <span>
+                  {f.type.startsWith("image/") ? "🖼 " : ""}
+                  {f.name}
+                </span>
+                <button
+                  type="button"
+                  className="hablar-file-remove"
+                  aria-label={`Quitar ${f.name}`}
+                  onClick={() =>
+                    setPendingFiles((prev) => prev.filter((_, idx) => idx !== i))
+                  }
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <input
+          ref={fileRef}
+          type="file"
+          multiple
+          className="hablar-file-input"
+          accept="image/*,.pdf,.txt,.csv,.xls,.xlsx,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
+          onChange={(e) => {
+            addFiles(e.target.files);
+            e.target.value = "";
+          }}
+        />
         <form className="hablar-composer" onSubmit={onSubmit}>
           <button
             type="button"
@@ -717,6 +808,18 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
               </span>
             )}
           </button>
+          <button
+            type="button"
+            className="hablar-attach"
+            aria-label="Adjuntar foto, PDF o Excel"
+            disabled={sending || micBusy}
+            onClick={() => fileRef.current?.click()}
+          >
+            <IconClip />
+            {pendingFiles.length > 0 && (
+              <span className="hablar-attach-count">{pendingFiles.length}</span>
+            )}
+          </button>
           <div
             className={`hablar-input-wrap ${recording ? "is-recording" : ""} ${transcribing ? "is-transcribing" : ""} ${liveMode && recording ? "is-live" : ""}`}
           >
@@ -730,7 +833,9 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
                   ? "Hablá… el texto aparece acá"
                   : transcribing
                     ? "Cerrando transcripción…"
-                    : "Escribí o tocá el mic…"
+                    : pendingFiles.length
+                      ? "Mensaje opcional… o Enviar el adjunto"
+                      : "Escribí, adjuntá o tocá el mic…"
               }
               onChange={(e) => {
                 setText(e.target.value);
@@ -753,7 +858,7 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
           <button
             type="submit"
             className="hablar-send"
-            disabled={sending || micBusy || !text.trim()}
+            disabled={sending || micBusy || (!text.trim() && pendingFiles.length === 0)}
             aria-label="Enviar"
           >
             <IconSend />

@@ -25,6 +25,11 @@ import { widgetsFromToolResults } from "@/lib/assistant/widgets";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
+import {
+  extractDocument,
+  wantsInventoryLoad,
+  type ExtractedDocument,
+} from "@/lib/assistant/document-extract";
 
 function isBareCancel(text: string): boolean {
   return /^(cancelar|cancelo|no)\s*[.!]?$/i.test(text.trim());
@@ -187,6 +192,8 @@ export async function POST(req: NextRequest) {
     kind: string;
   }[] = [];
 
+  const extractedDocs: ExtractedDocument[] = [];
+
   if (contentType.includes("multipart/form-data")) {
     const form = await req.formData();
     text = String(form.get("message") ?? "").trim();
@@ -211,6 +218,13 @@ export async function POST(req: NextRequest) {
       if (kind === "image") {
         const b64 = buf.toString("base64");
         imageDataUrls.push(`data:${mime};base64,${b64}`);
+      } else if (kind === "file") {
+        const extracted = await extractDocument({
+          filename: file.name,
+          mimeType: mime,
+          bytes: buf,
+        });
+        extractedDocs.push(extracted);
       }
     }
   } else {
@@ -229,9 +243,12 @@ export async function POST(req: NextRequest) {
   }
 
   const thread = await getOrCreateThread();
+  const attachNames = savedAttachments.map((a) => a.filename).join(", ");
   const userContent =
     text ||
-    `(Adjunto: ${savedAttachments.map((a) => a.filename).join(", ")})`;
+    (savedAttachments.length
+      ? `Revisá el adjunto (${attachNames}). Si es una compra, factura o lista, proponé cargar los insumos.`
+      : "");
 
   const userMsg = await prisma.chatMessage.create({
     data: {
@@ -244,6 +261,53 @@ export async function POST(req: NextRequest) {
     },
     include: { attachments: true },
   });
+
+  const structuredLines = extractedDocs.flatMap((d) =>
+    d.lines.map((line) => ({ ...line, source: d.filename }))
+  );
+  if (
+    structuredLines.length > 0 &&
+    wantsInventoryLoad(text, true) &&
+    !parseConfirmCode(text) &&
+    !isBareConfirm(text)
+  ) {
+    const staged = await executeAssistantTool(
+      "inventory_propose_add_many",
+      JSON.stringify({
+        items: structuredLines.map((l) => ({
+          name: l.name,
+          quantity: l.quantity,
+          unit: l.unit,
+        })),
+        source: extractedDocs.map((d) => d.filename).join(", "),
+      })
+    );
+    const widgets = widgetsFromToolResults([staged]);
+    const assistantMsg = await prisma.chatMessage.create({
+      data: {
+        threadId: thread.id,
+        role: "ASSISTANT",
+        content: staged.summary,
+        actionsJson: JSON.stringify({
+          toolResults: [staged],
+          staged: true,
+          widgets,
+          extracted: extractedDocs.map((d) => ({
+            filename: d.filename,
+            kind: d.kind,
+            lineCount: d.lines.length,
+          })),
+        }),
+      },
+    });
+    return NextResponse.json({
+      stub: false,
+      userMessage: userMsg,
+      assistantMessage: assistantMsg,
+      toolResults: [staged],
+      widgets,
+    });
+  }
 
   // —— Cancel gate (widget «Cancelar») ——
   const cancelCode = text ? parseCancelCode(text) : null;
@@ -420,10 +484,21 @@ export async function POST(req: NextRequest) {
     },
   });
 
+  const extractedBlock = extractedDocs
+    .filter((d) => d.text)
+    .map((d) => `### ${d.filename} (${d.kind})\n${d.text}`)
+    .join("\n\n");
+  const imageHint =
+    imageDataUrls.length > 0
+      ? "El usuario adjuntó foto(s). Si es ticket/factura/lista de compra, extraé insumos (nombre, cantidad, unidad) y llamá inventory_propose_add_many. No inventes cantidades."
+      : "";
+
   const systemExtra = `Contexto operativo Crunchadmin (resumen; para ficha completa usá tools):
 Pendientes abiertos: ${pendientes.map((p) => `[${p.prioridad}] ${p.title} (${p.categoria}/${p.zone})`).join("; ") || "ninguno"}
 Recetas (nombres): ${recetas.map((r) => r.name).join(", ") || "ninguna"} — ingredientes vía receta_get
-Inventario (muestra): ${insumos.map((i) => `${i.name}=${i.quantityOnHand}${i.baseUnit}`).join("; ") || "vacío"} — catálogo completo vía inventory_list`;
+Inventario (muestra): ${insumos.map((i) => `${i.name}=${i.quantityOnHand}${i.baseUnit}`).join("; ") || "vacío"} — catálogo completo vía inventory_list
+${imageHint}
+${extractedBlock ? `Texto extraído de adjuntos:\n${extractedBlock}` : ""}`;
 
   let assistantContent: string;
   let stub = false;
@@ -448,12 +523,21 @@ Inventario (muestra): ${insumos.map((i) => `${i.name}=${i.quantityOnHand}${i.bas
       },
       ...history
         .filter((m) => m.role !== "SYSTEM")
-        .map((m) => ({
-          role: (m.role === "USER" ? "user" : "assistant") as
-            | "user"
-            | "assistant",
-          content: m.content,
-        })),
+        .map((m) => {
+          const isLastUser = m.id === userMsg.id;
+          const extra =
+            isLastUser && extractedBlock
+              ? `\n\n--- Contenido extraído de adjuntos ---\n${extractedBlock}`
+              : isLastUser && imageDataUrls.length > 0
+                ? "\n\n(Foto adjunta: extraé insumos si es una compra y usá inventory_propose_add_many.)"
+                : "";
+          return {
+            role: (m.role === "USER" ? "user" : "assistant") as
+              | "user"
+              | "assistant",
+            content: `${m.content}${extra}`,
+          };
+        }),
     ];
 
     const result = await chatCompletion({ messages, imageDataUrls });
