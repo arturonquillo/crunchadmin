@@ -40,10 +40,11 @@ export function HomeRestaurant({ pendientes }: Props) {
     <div className="home-3d">
       <div className="home-3d-overlay">
         <div className="home-3d-brand">
-          <h1>Crunchadmin</h1>
+          {/* Brand lives only in the sticky nav — no duplicate hero title */}
+          <h1 className="sr-only">Crunchadmin</h1>
           <p>
-            Nivel jugable del local (Kenney CC0): tocá mesas, barra, cocina o la
-            pared — el pendiente se refleja en la escena.
+            Nivel jugable del local: tocá mesas, barra, cocina o la pared — el
+            pendiente se refleja en la escena.
           </p>
           <p className="home-3d-hint">
             {openCount} abiertos · alejate para ver todo · pellizca / rueda para
