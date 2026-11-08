@@ -154,12 +154,13 @@ function SceneInner({ pendientes, focusedZone, onFocusZone }: Props) {
         />
       ))}
 
+      {/* Under-slab contact shadow — avoid a shadow plane sitting on the wood top */}
       <ContactShadows
-        position={[0, -0.48, 0.8]}
-        opacity={0.28}
+        position={[0, -0.02, 0.8]}
+        opacity={0.35}
         scale={24}
-        blur={1.4}
-        far={12}
+        blur={2.0}
+        far={14}
       />
 
       <CameraRig focusedZone={focusedZone} controlsRef={controlsRef} />

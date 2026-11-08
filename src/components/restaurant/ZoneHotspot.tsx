@@ -57,28 +57,31 @@ export function ZoneHotspot({
           metalness={0.15}
         />
       </mesh>
-      {/* HTML pills never sit over the sheet — hide all while open */}
-      {!sheetOpen && (
-        <Html
-          distanceFactor={8}
-          position={[0, 0.45, 0]}
-          center
-          zIndexRange={[15, 5]}
-          style={{ pointerEvents: "auto" }}
+      {/* Keep Html mounted — conditional unmount races React roots via drei portals */}
+      <Html
+        distanceFactor={8}
+        position={[0, 0.45, 0]}
+        center
+        zIndexRange={[15, 5]}
+        style={{
+          pointerEvents: sheetOpen ? "none" : "auto",
+          opacity: sheetOpen ? 0 : 1,
+          visibility: sheetOpen ? "hidden" : "visible",
+        }}
+      >
+        <button
+          type="button"
+          className={`zone-pin ${active ? "active" : ""} ${count > 0 ? "has-work" : ""}`}
+          tabIndex={sheetOpen ? -1 : 0}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!sheetOpen) onSelect(zone);
+          }}
         >
-          <button
-            type="button"
-            className={`zone-pin ${active ? "active" : ""} ${count > 0 ? "has-work" : ""}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect(zone);
-            }}
-          >
-            <span className="zone-pin-label">{def.label}</span>
-            {count > 0 && <span className="zone-pin-count">{count}</span>}
-          </button>
-        </Html>
-      )}
+          <span className="zone-pin-label">{def.label}</span>
+          {count > 0 && <span className="zone-pin-count">{count}</span>}
+        </button>
+      </Html>
     </group>
   );
 }
