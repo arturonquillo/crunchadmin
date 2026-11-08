@@ -244,6 +244,29 @@ a {
 
 .btn.danger {
   background: var(--danger);
+  color: #fff;
+}
+
+.btn.ghost {
+  background: transparent;
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
+}
+
+.btn.ghost:hover {
+  background: rgba(26, 34, 24, 0.05);
+  color: var(--ink);
+}
+
+.btn.ghost.danger {
+  color: var(--danger);
+  border-color: rgba(159, 18, 57, 0.35);
+  background: transparent;
+}
+
+.btn.ghost.danger:hover {
+  background: rgba(159, 18, 57, 0.08);
+  color: var(--danger);
 }
 
 .btn:disabled {
@@ -2087,10 +2110,6 @@ table.data th {
   }
 }
 
-.btn.danger {
-  color: var(--danger);
-}
-
 .seg-control {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2192,6 +2211,11 @@ tr.row-warn td {
   margin-top: 0.45rem;
 }
 
+.pendientes-card-controls:has(.pendiente-estado-only:only-child),
+.pendientes-card-controls:has(> :only-child) {
+  grid-template-columns: 1fr;
+}
+
 .pendientes-card-controls label {
   display: flex;
   flex-direction: column;
@@ -2208,6 +2232,205 @@ tr.row-warn td {
   border: 1px solid var(--line);
   background: #fffef9;
   padding: 0.35rem 0.45rem;
+}
+
+.pendientes-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  margin-bottom: 0.75rem;
+}
+
+.pendientes-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+
+.pendientes-view-seg {
+  width: auto;
+  min-width: 9.5rem;
+  grid-template-columns: 1fr 1fr;
+}
+
+.pendientes-status-filter {
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--ink);
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #fffef9;
+  padding: 0.45rem 0.55rem;
+  max-width: 7.5rem;
+}
+
+.btn.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.6rem;
+  min-width: 2.35rem;
+  min-height: 2.35rem;
+}
+
+.btn.icon-btn.tags-toggle {
+  background: #fffef9;
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
+}
+
+.btn.icon-btn.tags-toggle:hover,
+.btn.icon-btn.tags-toggle.active {
+  color: var(--accent-deep);
+  border-color: rgba(47, 107, 58, 0.4);
+  background: var(--accent-soft);
+}
+
+.btn.danger.icon-btn {
+  background: var(--danger);
+  color: #fff;
+}
+
+.icon-btn-label {
+  font-size: 0.78rem;
+}
+
+@media (max-width: 520px) {
+  .list-card .icon-btn-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
+.pendientes-tags-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+  padding: 0.55rem 0.15rem 0.15rem;
+  border-top: 1px dashed rgba(26, 34, 24, 0.12);
+  animation: rise 180ms ease-out both;
+}
+
+.pendiente-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.pendiente-title {
+  min-width: 0;
+  word-break: break-word;
+}
+
+.pendiente-prio {
+  flex: 0 0 auto;
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.pendiente-prio.medium {
+  color: #ca8a04;
+}
+
+.pendiente-prio.high {
+  color: var(--danger);
+}
+
+.pendientes-board {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(240px, 1fr);
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding-bottom: 0.35rem;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pendientes-board-col {
+  scroll-snap-align: start;
+  background: rgba(255, 252, 245, 0.55);
+  border: 1px solid rgba(26, 34, 24, 0.08);
+  border-radius: 12px;
+  padding: 0.55rem 0.55rem 0.35rem;
+  min-height: 12rem;
+}
+
+.pendientes-board-col-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  margin-bottom: 0.45rem;
+  padding: 0 0.15rem;
+}
+
+.pendientes-board-col-head h3 {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.pendientes-board-count {
+  font-size: 0.75rem;
+  color: var(--muted);
+  background: rgba(26, 34, 24, 0.06);
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+}
+
+.pendientes-board-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.pendiente-board-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.45rem;
+  padding: 0.55rem 0.5rem;
+  border-radius: 10px;
+  background: #fffef9;
+  border: 1px solid rgba(26, 34, 24, 0.08);
+}
+
+.pendientes-board-empty {
+  font-size: 0.82rem;
+  color: var(--muted);
+  padding: 0.65rem 0.35rem;
+}
+
+@media (min-width: 900px) {
+  .pendientes-board {
+    grid-auto-flow: unset;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow: visible;
+  }
+
+  .pendientes-board-active {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 /* —— List page toolbar + create form sheet —— */
