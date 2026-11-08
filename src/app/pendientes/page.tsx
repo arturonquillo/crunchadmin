@@ -234,13 +234,13 @@ export default function PendientesPage() {
           <div className="pendientes-card-controls">
             {showTags && (
               <label>
-                Zona
+                {t("fieldZone")}
                 <select
                   value={item.zone}
                   onChange={(e) =>
                     patch(item.id, { zone: e.target.value as RestaurantZone })
                   }
-                  aria-label={`Zona de ${item.title}`}
+                  aria-label={t("zoneOf", { title: item.title })}
                 >
                   {ZONE_IDS.map((z) => (
                     <option key={z} value={z}>
@@ -251,7 +251,7 @@ export default function PendientesPage() {
               </label>
             )}
             <label className={showTags ? undefined : "pendiente-estado-only"}>
-              Estado
+              {t("fieldEstado")}
               <select
                 value={item.estado}
                 onChange={(e) =>
@@ -259,7 +259,7 @@ export default function PendientesPage() {
                     estado: e.target.value as PendienteEstado,
                   })
                 }
-                aria-label={`Estado de ${item.title}`}
+                aria-label={t("estadoOf", { title: item.title })}
               >
                 {ESTADOS.map((s) => (
                   <option key={s} value={s}>
@@ -342,7 +342,7 @@ export default function PendientesPage() {
               }
               onClick={() => setShowTags((v) => !v)}
               aria-pressed={showTags}
-              aria-label={showTags ? "Ocultar etiquetas" : "Mostrar etiquetas"}
+              aria-label={showTags ? t("hideTags") : t("showTags")}
               title={t("tags")}
             >
               <TagsIcon />
@@ -358,7 +358,7 @@ export default function PendientesPage() {
                 className={!filterCat ? "tab active" : "tab"}
                 onClick={() => setFilterCat("")}
               >
-                Todas
+                {t("allCategories")}
               </button>
               {CATEGORIAS.map((c) => (
                 <button
@@ -377,7 +377,7 @@ export default function PendientesPage() {
                 className={!filterZone ? "tab active" : "tab"}
                 onClick={() => setFilterZone("")}
               >
-                Todas las zonas
+                {t("allZones")}
               </button>
               {ZONE_IDS.map((z) => (
                 <button
@@ -399,7 +399,7 @@ export default function PendientesPage() {
           <p className="empty">
             {t("empty")}{" "}
             <button type="button" className="btn ghost" onClick={() => setShowForm(true)}>
-              Crear uno
+              {t("createOne")}
             </button>
           </p>
         ) : view === "lista" ? (
@@ -428,7 +428,7 @@ export default function PendientesPage() {
                 </header>
                 <ul className="pendientes-board-list">
                   {boardColumns[estado].length === 0 ? (
-                    <li className="pendientes-board-empty">Vacío</li>
+                    <li className="pendientes-board-empty">{t("emptyBoard")}</li>
                   ) : (
                     boardColumns[estado].map((item) => renderCard(item, true))
                   )}
@@ -442,13 +442,13 @@ export default function PendientesPage() {
       <FormSheet
         open={showForm}
         title={t("newTitle")}
-        kicker="Tareas"
+        kicker={t("kicker")}
         onClose={() => setShowForm(false)}
       >
         <form onSubmit={onCreate}>
           <div className="form-grid">
             <div className="field" style={{ gridColumn: "1 / -1" }}>
-              <label htmlFor="title">Título</label>
+              <label htmlFor="title">{t("fieldTitle")}</label>
               <input
                 id="title"
                 required
@@ -458,7 +458,7 @@ export default function PendientesPage() {
               />
             </div>
             <div className="field" style={{ gridColumn: "1 / -1" }}>
-              <label htmlFor="description">Descripción</label>
+              <label htmlFor="description">{t("fieldDescription")}</label>
               <textarea
                 id="description"
                 value={form.description}
@@ -466,7 +466,7 @@ export default function PendientesPage() {
               />
             </div>
             <div className="field">
-              <label htmlFor="categoria">Categoría</label>
+              <label htmlFor="categoria">{t("fieldCategoria")}</label>
               <select
                 id="categoria"
                 value={form.categoria}
@@ -485,7 +485,7 @@ export default function PendientesPage() {
               </select>
             </div>
             <div className="field">
-              <label htmlFor="zone">Zona</label>
+              <label htmlFor="zone">{t("fieldZone")}</label>
               <select
                 id="zone"
                 value={form.zone}
@@ -501,7 +501,7 @@ export default function PendientesPage() {
               </select>
             </div>
             <div className="field">
-              <label htmlFor="prioridad">Prioridad</label>
+              <label htmlFor="prioridad">{t("fieldPrioridad")}</label>
               <select
                 id="prioridad"
                 value={form.prioridad}
@@ -517,7 +517,7 @@ export default function PendientesPage() {
               </select>
             </div>
             <div className="field">
-              <label htmlFor="estado">Estado</label>
+              <label htmlFor="estado">{t("fieldEstado")}</label>
               <select
                 id="estado"
                 value={form.estado}

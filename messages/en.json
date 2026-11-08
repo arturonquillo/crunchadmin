@@ -118,7 +118,15 @@
     "fieldZone": "Zone",
     "create": "Create",
     "priorityOf": "Priority {label}",
-    "viewAria": "View"
+    "viewAria": "View",
+    "allCategories": "All",
+    "allZones": "All zones",
+    "emptyBoard": "Empty",
+    "createOne": "Create one",
+    "kicker": "Tasks",
+    "hideTags": "Hide tags",
+    "showTags": "Show tags",
+    "zoneOf": "Zone of {title}"
   },
   "Recetas": {
     "title": "Tech sheets",
@@ -197,7 +205,7 @@
     "assistant": "Assistant",
     "imagePrefix": "[image] {filename}",
     "message": "Message",
-    "placeholder": "Type or speak…",
+    "placeholder": "Type, attach, or tap the mic…",
     "attachments": "Attachments (image or other file)",
     "send": "Send",
     "sending": "Sending…",
@@ -205,7 +213,16 @@
     "historialTitle": "Conversations",
     "newChat": "New",
     "emptyThread": "Type or tap the mic to start.",
-    "speakReady": "Ready to speak"
+    "speakReady": "Ready to speak",
+    "conversations": "Conversations",
+    "newConversation": "New conversation",
+    "close": "Close",
+    "loadingThreads": "Loading conversations…",
+    "noThreads": "No conversations yet.",
+    "loadingChat": "Loading chat…",
+    "emptyHint": "Talk to the system. Tap the mic and speak, or attach a purchase photo / PDF / Excel.",
+    "noKey": "Without OPENAI_API_KEY there is no AI dictation. Type the message.",
+    "assistantKicker": "Assistant"
   },
   "Inventario": {
     "title": "Inventory",

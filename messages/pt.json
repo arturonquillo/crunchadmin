@@ -118,7 +118,15 @@
     "fieldZone": "Zona",
     "create": "Criar",
     "priorityOf": "Prioridade {label}",
-    "viewAria": "Vista"
+    "viewAria": "Vista",
+    "allCategories": "Todas",
+    "allZones": "Todas as zonas",
+    "emptyBoard": "Vazio",
+    "createOne": "Criar uma",
+    "kicker": "Tarefas",
+    "hideTags": "Ocultar etiquetas",
+    "showTags": "Mostrar etiquetas",
+    "zoneOf": "Zona de {title}"
   },
   "Recetas": {
     "title": "Fichas técnicas",
@@ -197,7 +205,7 @@
     "assistant": "Assistente",
     "imagePrefix": "[imagem] {filename}",
     "message": "Mensagem",
-    "placeholder": "Escreva ou fale…",
+    "placeholder": "Escreva, anexe ou toque no mic…",
     "attachments": "Anexos (imagem ou outro arquivo)",
     "send": "Enviar",
     "sending": "Enviando…",
@@ -205,7 +213,16 @@
     "historialTitle": "Conversas",
     "newChat": "Nova",
     "emptyThread": "Escreva ou toque no mic para começar.",
-    "speakReady": "Pronto para falar"
+    "speakReady": "Pronto para falar",
+    "conversations": "Conversas",
+    "newConversation": "Nova conversa",
+    "close": "Fechar",
+    "loadingThreads": "Carregando conversas…",
+    "noThreads": "Ainda não há conversas.",
+    "loadingChat": "Carregando chat…",
+    "emptyHint": "Fale com o sistema. Toque no mic e fale, ou anexe foto / PDF / Excel de uma compra.",
+    "noKey": "Sem OPENAI_API_KEY não há ditado por IA. Digite a mensagem.",
+    "assistantKicker": "Assistente"
   },
   "Inventario": {
     "title": "Estoque",

@@ -2318,7 +2318,8 @@ tr.row-warn td {
 }
 
 @media (max-width: 520px) {
-  .list-card .icon-btn-label {
+  .list-card .icon-btn-label,
+  .pendiente-board-card .icon-btn-label {
     position: absolute;
     width: 1px;
     height: 1px;

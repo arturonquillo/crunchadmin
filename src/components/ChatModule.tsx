@@ -291,12 +291,12 @@ export function ChatModule({
     const res = await fetch("/api/chat/threads", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: "Nueva conversación" }),
+      body: JSON.stringify({ title: t("newConversation") }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "No se pudo crear conversación");
     setThreadId(data.id);
-    setThreadTitle(data.title || "Nueva conversación");
+    setThreadTitle(data.title || t("newConversation"));
     setMessages([]);
     setPendingCodes(new Set());
     onThreadChangeRef.current?.(data.id);
@@ -779,7 +779,7 @@ export function ChatModule({
 
   const micHint =
     openaiOk === false
-      ? "Sin OPENAI_API_KEY no hay dictado por IA. Escribí el mensaje."
+      ? t("noKey")
       : !recorderSupport.ok
         ? recorderSupport.reason || null
         : null;
@@ -789,8 +789,8 @@ export function ChatModule({
       <div className="hablar-panel">
         <header className="hablar-head">
           <div className="hablar-head-text">
-            <p className="hablar-kicker">Asistente</p>
-            <h2>Chat</h2>
+            <p className="hablar-kicker">{t("assistantKicker")}</p>
+            <h2>{t("title")}</h2>
             <p className="hablar-thread-title">{threadTitle}</p>
           </div>
           <button
@@ -808,51 +808,51 @@ export function ChatModule({
         {historyOpen && (
           <div className="chat-history-panel" role="dialog" aria-label={t("historialTitle")}>
             <div className="chat-history-head">
-              <h3>Conversaciones</h3>
+              <h3>{t("conversations")}</h3>
               <div className="chat-history-head-actions">
                 <button
                   type="button"
                   className="btn ghost"
                   onClick={() => void startFreshFromHistory()}
                 >
-                  Nueva
+                  {t("newChat")}
                 </button>
                 <button
                   type="button"
                   className="btn ghost"
                   onClick={() => setHistoryOpen(false)}
                 >
-                  Cerrar
+                  {t("close")}
                 </button>
               </div>
             </div>
             <div className="chat-history-list">
               {threadsLoading && (
-                <p className="hablar-empty">Cargando conversaciones…</p>
+                <p className="hablar-empty">{t("loadingThreads")}</p>
               )}
               {!threadsLoading && threads.length === 0 && (
-                <p className="hablar-empty">Todavía no hay conversaciones.</p>
+                <p className="hablar-empty">{t("noThreads")}</p>
               )}
               {!threadsLoading &&
-                threads.map((t) => (
+                threads.map((thread) => (
                   <button
-                    key={t.id}
+                    key={thread.id}
                     type="button"
-                    className={`chat-history-item ${t.id === threadId ? "active" : ""}`}
-                    onClick={() => void selectThread(t.id)}
+                    className={`chat-history-item ${thread.id === threadId ? "active" : ""}`}
+                    onClick={() => void selectThread(thread.id)}
                   >
-                    <span className="chat-history-item-title">{t.title}</span>
+                    <span className="chat-history-item-title">{thread.title}</span>
                     <span className="chat-history-item-meta">
-                      {new Date(t.updatedAt).toLocaleString("es", {
+                      {new Date(thread.updatedAt).toLocaleString("es", {
                         day: "2-digit",
                         month: "short",
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
-                      {t.messageCount > 0 ? ` · ${t.messageCount} msgs` : ""}
+                      {thread.messageCount > 0 ? ` · ${thread.messageCount} msgs` : ""}
                     </span>
-                    {t.preview && (
-                      <span className="chat-history-item-preview">{t.preview}</span>
+                    {thread.preview && (
+                      <span className="chat-history-item-preview">{thread.preview}</span>
                     )}
                   </button>
                 ))}
@@ -861,13 +861,10 @@ export function ChatModule({
         )}
 
         <div className="hablar-log" ref={logRef}>
-          {booting && <p className="hablar-empty">Cargando chat…</p>}
+          {booting && <p className="hablar-empty">{t("loadingChat")}</p>}
           {!booting && messages.length === 0 && (
             <div className="hablar-empty">
-              <p>Conversá con el sistema.</p>
-              <p className="muted">
-                Tocá el mic y hablá, o adjuntá foto / PDF / Excel de una compra.
-              </p>
+              <p>{t("emptyHint")}</p>
             </div>
           )}
           {messages.map((m) => {
@@ -1031,15 +1028,7 @@ export function ChatModule({
               className="hablar-input"
               value={text}
               rows={1}
-              placeholder={
-                recording
-                  ? "Hablá… el texto aparece acá"
-                  : transcribing
-                    ? "Cerrando transcripción…"
-                    : pendingFiles.length
-                      ? "Mensaje opcional… o Enviar el adjunto"
-                      : "Escribí, adjuntá o tocá el mic…"
-              }
+              placeholder={t("placeholder")}
               onChange={(e) => {
                 setText(e.target.value);
                 baseTextRef.current = e.target.value;
