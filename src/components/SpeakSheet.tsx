@@ -384,7 +384,11 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
   const startRecording = useCallback(async () => {
     setStatus(null);
     setLivePartial("");
-    if (!openaiOk) {
+    if (openaiOk === null) {
+      setStatus("Preparando micrófono…");
+      return;
+    }
+    if (openaiOk === false) {
       setStatus(
         "Transcripción por IA no disponible (falta OPENAI_API_KEY). Escribí el mensaje."
       );
@@ -466,14 +470,17 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
     };
   }, [releaseStream]);
 
+  // Only auto-start after we know OpenAI is configured — avoids false "falta API key"
   useEffect(() => {
     if (!autoStart) return;
+    if (openaiOk !== true) return;
+    if (!recorderSupport.ok) return;
     const t = window.setTimeout(() => {
       void startRecording();
-    }, 0);
+    }, 50);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoStart]);
+  }, [autoStart, openaiOk, recorderSupport.ok]);
 
   const sendMessage = useCallback(
     async (payload: string) => {
@@ -571,7 +578,7 @@ export function SpeakSheet({ onClose, autoStart = false }: Props) {
       <div className="hablar-panel">
         <header className="hablar-head">
           <div className="hablar-head-text">
-            <p className="hablar-kicker">Asistente · Live STT</p>
+            <p className="hablar-kicker">Asistente</p>
             <h2>Hablar</h2>
           </div>
           <button
