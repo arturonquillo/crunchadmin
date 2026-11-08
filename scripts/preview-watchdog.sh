@@ -83,13 +83,27 @@ extract_tunnel_url() {
 
 write_url_file() {
   local url="$1"
+  local stable="${STABLE_PREVIEW_URL:-https://test2.lecrunch.com.br}"
   mkdir -p "$(dirname "$URL_FILE")"
   cat > "$URL_FILE" <<EOF
 # Crunchadmin live preview
 
 Updated: $(date -u +%Y-%m-%dT%H:%M:%SZ) UTC
 
-## Public tunnel (current)
+## Stable Hostinger (preferred)
+
+$stable
+
+- Home: $stable/
+- Inventario: $stable/inventario
+- Producción: $stable/produccion
+- Recetas: $stable/recetas
+- Pendientes: $stable/pendientes
+
+Deploy path on VPS: \`/opt/crunchadmin\`  
+Restart: \`systemctl restart crunchadmin\`
+
+## Ephemeral tunnel (fallback)
 
 $url
 
@@ -107,9 +121,8 @@ $url
 
 tmux session \`$WATCH_SESSION\` runs \`scripts/preview-watchdog.sh\`.
 It restarts Next (\`npm run start\` on :3000) and cloudflared if health checks fail,
-and rewrites this file whenever the trycloudflare hostname changes.
-
-> Quick tunnels are ephemeral; the hostname changes on restart. Prefer a stable host (Vercel/etc.) when tokens are available.
+and refreshes the ephemeral tunnel section when the trycloudflare hostname changes.
+It keeps the Hostinger stable URL as preferred.
 EOF
 }
 
