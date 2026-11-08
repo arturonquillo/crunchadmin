@@ -147,6 +147,16 @@ async function main() {
         reorderHint: "Caja 5 kg",
         fifoNote: "FIFO en cámara fría",
       },
+      {
+        name: "Harina",
+        category: "SECOS",
+        baseUnit: "kg",
+        quantityOnHand: 0,
+        packSize: 25,
+        minQty: 5,
+        reorderHint: "Saco 25 kg — demo Hablar «agrega 20 kg de harina»",
+        fifoNote: "Sacos nuevos detrás",
+      },
     ].map((d) => prisma.insumo.create({ data: d }))
   );
 
