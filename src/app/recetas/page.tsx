@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 
 type Receta = {
   id: string;
@@ -14,6 +15,8 @@ type Receta = {
 };
 
 export default function RecetasPage() {
+  const t = useTranslations("Recetas");
+  const tc = useTranslations("Common");
   const [recetas, setRecetas] = useState<Receta[]>([]);
   const [name, setName] = useState("");
   const [yieldQty, setYieldQty] = useState("1");
@@ -64,7 +67,7 @@ export default function RecetasPage() {
     });
     if (!res.ok) {
       const d = await res.json();
-      setError(d.error || "Error");
+      setError(d.error || tc("error"));
       return;
     }
     setName("");
@@ -73,18 +76,15 @@ export default function RecetasPage() {
 
   return (
     <>
-      <h1 className="section-title">Recetas</h1>
-      <p className="section-sub">
-        Fichas técnicas con versiones. Abre una receta para escalar desde
-        cualquier ingrediente base.
-      </p>
+      <h1 className="section-title">{t("title")}</h1>
+      <p className="section-sub">{t("subtitle")}</p>
 
       <section className="panel">
-        <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Nueva receta</h2>
+        <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>{t("newTitle")}</h2>
         <form onSubmit={onCreate}>
           <div className="form-grid">
             <div className="field" style={{ gridColumn: "1 / -1" }}>
-              <label htmlFor="rname">Nombre</label>
+              <label htmlFor="rname">{t("fieldName")}</label>
               <input
                 id="rname"
                 required
@@ -93,7 +93,7 @@ export default function RecetasPage() {
               />
             </div>
             <div className="field">
-              <label htmlFor="yq">Rendimiento</label>
+              <label htmlFor="yq">{t("fieldYield")}</label>
               <input
                 id="yq"
                 type="number"
@@ -103,7 +103,7 @@ export default function RecetasPage() {
               />
             </div>
             <div className="field">
-              <label htmlFor="yu">Unidad</label>
+              <label htmlFor="yu">{t("fieldUnit")}</label>
               <input
                 id="yu"
                 value={yieldUnit}
@@ -111,18 +111,16 @@ export default function RecetasPage() {
               />
             </div>
             <div className="field">
-              <label htmlFor="yl">Etiqueta yield</label>
+              <label htmlFor="yl">{t("fieldYieldLabel")}</label>
               <input
                 id="yl"
-                placeholder="mayonesa"
+                placeholder={t("yieldPlaceholder")}
                 value={yieldLabel}
                 onChange={(e) => setYieldLabel(e.target.value)}
               />
             </div>
             <div className="field" style={{ gridColumn: "1 / -1" }}>
-              <label htmlFor="lines">
-                Líneas (nombre,cantidad,unidad[,gusto])
-              </label>
+              <label htmlFor="lines">{t("fieldLines")}</label>
               <textarea
                 id="lines"
                 value={linesText}
@@ -133,7 +131,7 @@ export default function RecetasPage() {
           </div>
           <div className="form-actions">
             <button className="btn" type="submit">
-              Crear receta
+              {t("create")}
             </button>
           </div>
         </form>
@@ -144,15 +142,15 @@ export default function RecetasPage() {
 
       <section className="panel">
         {recetas.length === 0 ? (
-          <p className="empty">Sin recetas aún.</p>
+          <p className="empty">{t("empty")}</p>
         ) : (
           <div className="table-wrap">
             <table className="data">
               <thead>
                 <tr>
-                  <th>Nombre</th>
-                  <th>Rendimiento</th>
-                  <th>Versiones</th>
+                  <th>{t("colName")}</th>
+                  <th>{t("colYield")}</th>
+                  <th>{t("colVersions")}</th>
                   <th></th>
                 </tr>
               </thead>
@@ -160,9 +158,12 @@ export default function RecetasPage() {
                 {recetas.map((r) => (
                   <tr key={r.id}>
                     <td>
+                      {/* User content — keep original language */}
                       <strong>{r.name}</strong>
                       {r.notes && (
-                        <div style={{ color: "var(--muted)", fontSize: "0.85rem" }}>
+                        <div
+                          style={{ color: "var(--muted)", fontSize: "0.85rem" }}
+                        >
                           {r.notes}
                         </div>
                       )}
@@ -170,12 +171,12 @@ export default function RecetasPage() {
                     <td>
                       {r.yieldQty != null
                         ? `${r.yieldQty} ${r.yieldUnit ?? ""} ${r.yieldLabel ? `(${r.yieldLabel})` : ""}`
-                        : "—"}
+                        : tc("dash")}
                     </td>
                     <td>{r.versions.length}</td>
                     <td>
                       <Link className="btn secondary" href={`/recetas/${r.id}`}>
-                        Abrir / escalar
+                        {t("openScale")}
                       </Link>
                     </td>
                   </tr>

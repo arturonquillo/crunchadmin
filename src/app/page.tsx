@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { isOpenAIConfigured } from "@/lib/openai";
 import { isAuthConfigured } from "@/lib/auth";
@@ -6,6 +7,7 @@ import { isAuthConfigured } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
+  const t = await getTranslations("Home");
   const [pendientesAbiertos, recetas, menuItems, reminders] = await Promise.all([
     prisma.pendiente.count({ where: { estado: { not: "HECHO" } } }),
     prisma.receta.count(),
@@ -16,17 +18,14 @@ export default async function HomePage() {
   return (
     <>
       <section className="hero-admin">
-        <h1>Crunchadmin</h1>
-        <p>
-          Centro operativo del restaurante: pendientes, fichas técnicas con
-          escalado, menú por canal y asistente. MVP listo para uso local.
-        </p>
+        <h1>{t("brand")}</h1>
+        <p>{t("lead")}</p>
         <div className="form-actions">
           <Link className="btn" href="/recetas">
-            Abrir recetas
+            {t("openRecipes")}
           </Link>
           <Link className="btn secondary" href="/pendientes">
-            Ver pendientes
+            {t("viewPendientes")}
           </Link>
         </div>
       </section>
@@ -34,40 +33,42 @@ export default async function HomePage() {
       <div className="grid-stats">
         <div className="stat">
           <strong>{pendientesAbiertos}</strong>
-          <span>Pendientes abiertos</span>
+          <span>{t("statOpenPendientes")}</span>
         </div>
         <div className="stat">
           <strong>{recetas}</strong>
-          <span>Recetas</span>
+          <span>{t("statRecetas")}</span>
         </div>
         <div className="stat">
           <strong>{menuItems}</strong>
-          <span>Ítems de menú</span>
+          <span>{t("statMenuItems")}</span>
         </div>
         <div className="stat">
           <strong>{reminders}</strong>
-          <span>Recordatorios (stub)</span>
+          <span>{t("statReminders")}</span>
         </div>
       </div>
 
       <section className="panel" style={{ marginTop: "1.25rem" }}>
         <h2 className="section-title" style={{ fontSize: "1.25rem" }}>
-          Estado del entorno
+          {t("envTitle")}
         </h2>
-        <ul style={{ margin: "0.75rem 0 0", paddingLeft: "1.1rem", color: "var(--ink-soft)" }}>
+        <ul
+          style={{
+            margin: "0.75rem 0 0",
+            paddingLeft: "1.1rem",
+            color: "var(--ink-soft)",
+          }}
+        >
           <li>
-            OpenAI:{" "}
-            {isOpenAIConfigured()
-              ? "configurado"
-              : "stub activo (sin OPENAI_API_KEY)"}
+            {t("openaiLabel")}:{" "}
+            {isOpenAIConfigured() ? t("openaiConfigured") : t("openaiStub")}
           </li>
           <li>
-            Auth:{" "}
-            {isAuthConfigured()
-              ? "variables detectadas"
-              : "modo single-operator (sin login)"}
+            {t("authLabel")}:{" "}
+            {isAuthConfigured() ? t("authConfigured") : t("authSingle")}
           </li>
-          <li>Base de datos: SQLite local (ver DATABASE_URL)</li>
+          <li>{t("dbLocal")}</li>
         </ul>
       </section>
     </>

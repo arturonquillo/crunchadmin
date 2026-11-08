@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 
 type Attachment = {
   id: string;
@@ -19,6 +20,9 @@ type Message = {
 };
 
 export default function ChatPage() {
+  const t = useTranslations("Chat");
+  const tc = useTranslations("Common");
+  const locale = useLocale();
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
   const [files, setFiles] = useState<FileList | null>(null);
@@ -54,7 +58,7 @@ export default function ChatPage() {
       const res = await fetch("/api/chat", { method: "POST", body: form });
       const data = await res.json();
       if (!res.ok) {
-        alert(data.error || "Error");
+        alert(data.error || tc("error"));
         return;
       }
       setText("");
@@ -71,18 +75,15 @@ export default function ChatPage() {
 
   return (
     <>
-      <h1 className="section-title">Chat</h1>
+      <h1 className="section-title">{t("title")}</h1>
       <p className="section-sub">
-        Asistente multimodal (texto + imagen/archivo).{" "}
-        {openaiConfigured
-          ? "OpenAI conectado."
-          : "Modo stub sin OPENAI_API_KEY — respuestas locales de cortesía."}
+        {openaiConfigured ? t("subtitleConnected") : t("subtitleStub")}
       </p>
 
       <section className="panel chat-layout">
         <div className="chat-log" ref={logRef}>
           {messages.length === 0 && (
-            <p className="empty">Escribe el primer mensaje para empezar.</p>
+            <p className="empty">{t("empty")}</p>
           )}
           {messages.map((m) => (
             <div
@@ -90,15 +91,18 @@ export default function ChatPage() {
               className={m.role === "USER" ? "bubble user" : "bubble assistant"}
             >
               <span className="meta">
-                {m.role === "USER" ? "Tú" : "Asistente"} ·{" "}
-                {new Date(m.createdAt).toLocaleTimeString("es")}
+                {m.role === "USER" ? t("you") : t("assistant")} ·{" "}
+                {new Date(m.createdAt).toLocaleTimeString(locale)}
               </span>
+              {/* Chat message content is user/assistant data — not system chrome */}
               <div style={{ whiteSpace: "pre-wrap" }}>{m.content}</div>
               {m.attachments && m.attachments.length > 0 && (
                 <div className="chat-attach">
                   {m.attachments.map((a) => (
                     <a key={a.id} href={a.url} target="_blank" rel="noreferrer">
-                      {a.kind === "image" ? `[imagen] ${a.filename}` : a.filename}
+                      {a.kind === "image"
+                        ? t("imagePrefix", { filename: a.filename })
+                        : a.filename}
                     </a>
                   ))}
                 </div>
@@ -109,16 +113,16 @@ export default function ChatPage() {
 
         <form className="chat-composer" onSubmit={onSend}>
           <div className="field">
-            <label htmlFor="msg">Mensaje</label>
+            <label htmlFor="msg">{t("message")}</label>
             <textarea
               id="msg"
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Pregunta sobre pendientes, recetas o el menú…"
+              placeholder={t("placeholder")}
             />
           </div>
           <div className="field">
-            <label htmlFor="chat-files">Adjuntos (imagen u otro archivo)</label>
+            <label htmlFor="chat-files">{t("attachments")}</label>
             <input
               id="chat-files"
               type="file"
@@ -129,7 +133,7 @@ export default function ChatPage() {
           </div>
           <div className="form-actions">
             <button className="btn" type="submit" disabled={sending}>
-              {sending ? "Enviando…" : "Enviar"}
+              {sending ? t("sending") : t("send")}
             </button>
           </div>
         </form>
