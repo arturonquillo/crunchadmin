@@ -2068,6 +2068,35 @@ table.data th {
   margin-bottom: 0;
 }
 
+.inv-view-toggle {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.55);
+  flex: 0 0 auto;
+}
+
+.inv-view-toggle button {
+  appearance: none;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-soft);
+  min-height: 2.1rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.inv-view-toggle button.active {
+  background: var(--accent);
+  color: #fff;
+}
+
 .inv-cards {
   list-style: none;
   margin: 0;
@@ -2075,6 +2104,29 @@ table.data th {
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
+}
+
+.inv-cards.is-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
+  gap: 0.55rem;
+}
+
+.inv-cards.is-grid .inv-card.is-expanded {
+  grid-column: 1 / -1;
+}
+
+.inv-cards.is-grid .inv-card-main {
+  padding: 0.65rem 0.7rem 0.75rem;
+}
+
+.inv-cards.is-grid .inv-qty-now {
+  font-size: var(--text-lg);
+}
+
+.inv-cards.is-grid .inv-bar-caption,
+.inv-cards.is-grid .inv-reorder-msg {
+  font-size: var(--text-xs);
 }
 
 .inv-card {

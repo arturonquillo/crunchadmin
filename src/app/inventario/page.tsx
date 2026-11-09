@@ -64,6 +64,14 @@ export default function InventarioPage() {
   const [onlyAttention, setOnlyAttention] = useState(false);
   /** Categories open in the accordion; missing key = open (default expanded). */
   const [openCats, setOpenCats] = useState<Record<string, boolean>>({});
+  const [viewMode, setViewMode] = useState<"lista" | "grid">("grid");
+  const [editItem, setEditItem] = useState<Insumo | null>(null);
+  const [editForm, setEditForm] = useState({
+    packSize: "",
+    minQty: "",
+    reorderHint: "",
+  });
+  const [editSaving, setEditSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -219,6 +227,42 @@ export default function InventarioPage() {
     await load();
   }
 
+  function openEditLimits(item: Insumo) {
+    setEditItem(item);
+    setEditForm({
+      packSize: item.packSize != null ? String(item.packSize) : "",
+      minQty: item.minQty != null ? String(item.minQty) : "",
+      reorderHint: item.reorderHint || "",
+    });
+  }
+
+  async function saveLimits(e: FormEvent) {
+    e.preventDefault();
+    if (!editItem) return;
+    setEditSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/inventario/${editItem.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          packSize: editForm.packSize === "" ? null : Number(editForm.packSize),
+          minQty: editForm.minQty === "" ? null : Number(editForm.minQty),
+          reorderHint: editForm.reorderHint || null,
+        }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        setError(d.error || "Error al guardar");
+        return;
+      }
+      setEditItem(null);
+      await load();
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
   async function receivePack(item: Insumo) {
     if (!item.packSize) {
       alert(t("definePackFirst"));
@@ -290,6 +334,22 @@ export default function InventarioPage() {
             placeholder={t("searchPlaceholder")}
           />
         </div>
+        <div className="inv-view-toggle" role="group" aria-label={t("viewAria")}>
+          <button
+            type="button"
+            className={viewMode === "lista" ? "active" : ""}
+            onClick={() => setViewMode("lista")}
+          >
+            {t("viewLista")}
+          </button>
+          <button
+            type="button"
+            className={viewMode === "grid" ? "active" : ""}
+            onClick={() => setViewMode("grid")}
+          >
+            {t("viewGrid")}
+          </button>
+        </div>
         <label className="inv-check">
           <input
             type="checkbox"
@@ -323,6 +383,60 @@ export default function InventarioPage() {
           );
         })}
       </div>
+
+      <FormSheet
+        open={Boolean(editItem)}
+        title={editItem ? `${t("editLimitsTitle")} · ${editItem.name}` : t("editLimitsTitle")}
+        kicker={t("kicker")}
+        onClose={() => setEditItem(null)}
+      >
+        <form onSubmit={saveLimits}>
+          <div className="form-grid">
+            <div className="field">
+              <label htmlFor="edit-pack">{t("fieldPack")}</label>
+              <input
+                id="edit-pack"
+                type="number"
+                step="any"
+                min="0"
+                value={editForm.packSize}
+                onChange={(e) => setEditForm({ ...editForm, packSize: e.target.value })}
+                placeholder={t("packPlaceholder")}
+                autoFocus
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="edit-min">{t("fieldMin")}</label>
+              <input
+                id="edit-min"
+                type="number"
+                step="any"
+                min="0"
+                value={editForm.minQty}
+                onChange={(e) => setEditForm({ ...editForm, minQty: e.target.value })}
+                placeholder={t("optionalPlaceholder")}
+              />
+            </div>
+            <div className="field" style={{ gridColumn: "1 / -1" }}>
+              <label htmlFor="edit-hint">{t("fieldReorderHint")}</label>
+              <input
+                id="edit-hint"
+                value={editForm.reorderHint}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, reorderHint: e.target.value })
+                }
+                placeholder={t("reorderHintPlaceholder")}
+              />
+            </div>
+          </div>
+          {error && <p className="error">{error}</p>}
+          <div className="form-actions">
+            <button className="btn" type="submit" disabled={editSaving}>
+              {t("saveLimits")}
+            </button>
+          </div>
+        </form>
+      </FormSheet>
 
       <FormSheet
         open={showForm}
@@ -465,7 +579,7 @@ export default function InventarioPage() {
               </h2>
               <ul
                 id={panelId}
-                className="inv-cards"
+                className={`inv-cards ${viewMode === "grid" ? "is-grid" : "is-lista"}`}
                 hidden={!catOpen}
                 aria-hidden={!catOpen}
               >
@@ -479,7 +593,10 @@ export default function InventarioPage() {
                   const open = expanded === item.id;
                   const barWidth = fill == null ? 0 : Math.min(100, fill);
                   return (
-                    <li key={item.id} className={`inv-card status-${statusClass(st)}`}>
+                    <li
+                      key={item.id}
+                      className={`inv-card status-${statusClass(st)} ${open ? "is-expanded" : ""}`}
+                    >
                       <button
                         type="button"
                         className="inv-card-main"
@@ -572,6 +689,13 @@ export default function InventarioPage() {
                             )}
                           </div>
                           <div className="inv-actions">
+                            <button
+                              type="button"
+                              className="btn ghost"
+                              onClick={() => openEditLimits(item)}
+                            >
+                              {t("editLimits")}
+                            </button>
                             <button
                               type="button"
                               className="btn ghost"

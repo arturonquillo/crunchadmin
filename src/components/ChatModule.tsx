@@ -242,6 +242,10 @@ export function ChatModule({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const onThreadChangeRef = useRef(onThreadChange);
+  /** Filled when stopRecording waits on the Whisper MediaRecorder path. */
+  const whisperStopWaitRef = useRef<{
+    resolve: (text: string) => void;
+  } | null>(null);
   onThreadChangeRef.current = onThreadChange;
 
   const micReady = Boolean(openaiOk && recorderSupport.ok);
@@ -474,11 +478,20 @@ export function ChatModule({
       chunksRef.current = [];
       releaseStream();
       mediaRecorderRef.current = null;
+      const finishWait = (text: string) => {
+        const waiter = whisperStopWaitRef.current;
+        whisperStopWaitRef.current = null;
+        waiter?.resolve(text);
+      };
       if (blob.size < 400) {
         setStatus(t("tooShort"));
+        finishWait(baseTextRef.current.trim());
         return;
       }
-      void transcribeBlob(blob, type);
+      void (async () => {
+        await transcribeBlob(blob, type);
+        finishWait(baseTextRef.current.trim());
+      })();
     };
 
     mediaRecorderRef.current = recorder;
@@ -487,39 +500,52 @@ export function ChatModule({
     setStatus(t("recordingWhisper"));
   }, [recorderSupport, releaseStream, transcribeBlob, t]);
 
-  const stopRecording = useCallback(() => {
+  /** Stop mic and resolve with the final transcript (live or Whisper). */
+  const stopRecording = useCallback((): Promise<string> => {
     const live = liveSessionRef.current;
     if (live) {
       liveSessionRef.current = null;
       setRecording(false);
       setTranscribing(true);
       setStatus(t("closingLive"));
-      void live
+      return live
         .stop()
         .then((finalText) => {
-          if (finalText) applyLiveText(finalText);
-          setStatus(finalText ? t("readyEditSend") : null);
+          const spoken = (finalText || "").trim();
+          if (spoken) applyLiveText(spoken);
+          const next = baseTextRef.current.trim();
+          setStatus(next ? t("readyEditSend") : null);
+          return next;
         })
-        .catch((err) => setStatus(String(err)))
+        .catch((err) => {
+          setStatus(String(err));
+          return baseTextRef.current.trim();
+        })
         .finally(() => {
           setTranscribing(false);
           setLiveStream(null);
           setLiveMode(false);
         });
-      return;
     }
 
     const rec = mediaRecorderRef.current;
     if (rec && rec.state !== "inactive") {
-      try {
-        rec.stop();
-      } catch {
-        /* ignore */
-      }
-    } else {
-      setRecording(false);
-      releaseStream();
+      return new Promise<string>((resolve) => {
+        whisperStopWaitRef.current = { resolve };
+        try {
+          rec.stop();
+        } catch {
+          whisperStopWaitRef.current = null;
+          setRecording(false);
+          releaseStream();
+          resolve(baseTextRef.current.trim());
+        }
+      });
     }
+
+    setRecording(false);
+    releaseStream();
+    return Promise.resolve(baseTextRef.current.trim());
   }, [releaseStream, applyLiveText, t]);
 
   const startRecording = useCallback(async () => {
@@ -634,9 +660,17 @@ export function ChatModule({
   const sendMessage = useCallback(
     async (payload: string, files?: File[]) => {
       const attach = files ?? pendingFiles;
-      const clean = payload.trim();
-      if ((!clean && attach.length === 0) || sending) return;
-      if (recording) stopRecording();
+      if (sending) return;
+
+      // While speaking: stop audio first, then send the final transcript.
+      let clean = payload.trim();
+      if (recording) {
+        const finalText = await stopRecording();
+        clean = (finalText || clean || baseTextRef.current).trim();
+      }
+
+      if (!clean && attach.length === 0) return;
+
       setSending(true);
       setStatus(null);
       const tempId = `local-${Date.now()}`;
@@ -1052,8 +1086,12 @@ export function ChatModule({
           <button
             type="submit"
             className="hablar-send"
-            disabled={sending || micBusy || (!text.trim() && pendingFiles.length === 0)}
-            aria-label={t("send")}
+            disabled={
+              sending ||
+              (!recording && !text.trim() && pendingFiles.length === 0)
+            }
+            aria-label={recording ? t("sendWhileSpeaking") : t("send")}
+            title={recording ? t("sendWhileSpeaking") : t("send")}
           >
             <IconSend />
           </button>
