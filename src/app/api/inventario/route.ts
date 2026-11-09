@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 
 export async function GET() {
+  const prisma = await getPrisma();
+
   const items = await prisma.insumo.findMany({
     orderBy: [{ category: "asc" }, { name: "asc" }],
     include: {
@@ -46,6 +48,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const prisma = await getPrisma();
+
   const body = await req.json();
   const name = String(body.name ?? "").trim();
   const baseUnit = String(body.baseUnit ?? "").trim();

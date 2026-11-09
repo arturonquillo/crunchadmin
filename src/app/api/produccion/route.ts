@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { previewProduction } from "@/lib/production";
 import { ScaleError } from "@/lib/scaling";
 
 export async function GET() {
+  const prisma = await getPrisma();
+
   const items = await prisma.produccion.findMany({
     orderBy: { createdAt: "desc" },
     take: 50,
@@ -16,6 +18,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const prisma = await getPrisma();
+
   const body = await req.json();
   const recetaId = String(body.recetaId ?? "");
   const force = Boolean(body.force);

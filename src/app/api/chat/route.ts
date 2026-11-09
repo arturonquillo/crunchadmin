@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { chatCompletion, isOpenAIConfigured } from "@/lib/openai";
 import {
   matchInsumoName,
@@ -59,6 +59,7 @@ async function applyInventoryFromText(text: string): Promise<{
     return { applied: false, summary: null, actions: null };
   }
 
+  const prisma = await getPrisma();
   const insumos = await prisma.insumo.findMany();
   let match = matchInsumoName(insumos, intent.nameQuery);
 
@@ -143,6 +144,8 @@ function parseConfirmCode(text: string): string | null {
 }
 
 export async function GET(req: NextRequest) {
+  const prisma = await getPrisma();
+
   const threadId = req.nextUrl.searchParams.get("threadId");
   const thread = await resolveThread(threadId);
   const messages = await prisma.chatMessage.findMany({
@@ -167,6 +170,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const prisma = await getPrisma();
+
   const contentType = req.headers.get("content-type") || "";
   let text = "";
   let requestedThreadId: string | null = null;

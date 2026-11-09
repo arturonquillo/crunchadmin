@@ -1,9 +1,24 @@
 import { PrismaClient } from "@prisma/client";
 
+const url = process.env.DATABASE_URL || "";
+const normalized = url.replace(/^file:/, "").replace(/\\/g, "/").toLowerCase();
+const looksLikeProd =
+  /(^|\/)prod\.db$/.test(normalized) ||
+  normalized.includes("/prod.db") ||
+  (Boolean(process.env.DATABASE_URL_PROD) && url === process.env.DATABASE_URL_PROD);
+if (looksLikeProd && process.env.CRUNCHADMIN_ALLOW_PROD_SEED !== "1") {
+  console.error(
+    "Refusing to seed: DATABASE_URL looks like the production DB.\n" +
+      "Seed only the Desarrollo/demo file (DATABASE_URL_DEMO).\n" +
+      "Set CRUNCHADMIN_ALLOW_PROD_SEED=1 only if the owner explicitly asked."
+  );
+  process.exit(1);
+}
+
 const prisma = new PrismaClient();
 
 async function main() {
-  // Clean slate for idempotent local seed
+  // Clean slate for idempotent DEV/demo seed only — never wipe prod without ask
   await prisma.chatAttachment.deleteMany();
   await prisma.chatMessage.deleteMany();
   await prisma.chatThread.deleteMany();

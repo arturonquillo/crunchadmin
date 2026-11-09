@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { CATEGORIAS, ESTADOS, PRIORIDADES } from "@/lib/labels";
 import { isRestaurantZone, resolveZone } from "@/lib/zones";
 
 export async function GET(req: NextRequest) {
+  const prisma = await getPrisma();
+
   const { searchParams } = new URL(req.url);
   const categoria = searchParams.get("categoria");
   const estado = searchParams.get("estado");
@@ -22,6 +24,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const prisma = await getPrisma();
+
   const body = await req.json();
   const title = String(body.title ?? "").trim();
   if (!title) {

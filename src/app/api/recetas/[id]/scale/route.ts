@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { scaleRecipe, ScaleError } from "@/lib/scaling";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function POST(req: NextRequest, ctx: Ctx) {
+  const prisma = await getPrisma();
+
   const { id } = await ctx.params;
   const body = await req.json();
 

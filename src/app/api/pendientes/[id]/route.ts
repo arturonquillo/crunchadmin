@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { CATEGORIAS, ESTADOS, PRIORIDADES } from "@/lib/labels";
 import { isRestaurantZone } from "@/lib/zones";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: NextRequest, ctx: Ctx) {
+  const prisma = await getPrisma();
+
   const { id } = await ctx.params;
   const body = await req.json();
   const data: Record<string, unknown> = {};
@@ -54,6 +56,8 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
 }
 
 export async function DELETE(_req: NextRequest, ctx: Ctx) {
+  const prisma = await getPrisma();
+
   const { id } = await ctx.params;
   try {
     await prisma.pendiente.delete({ where: { id } });

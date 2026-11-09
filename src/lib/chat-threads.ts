@@ -1,7 +1,8 @@
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { SYSTEM_PROMPT } from "@/lib/assistant/tools";
 
 export async function listChatThreads() {
+  const prisma = await getPrisma();
   return prisma.chatThread.findMany({
     orderBy: { updatedAt: "desc" },
     select: {
@@ -21,6 +22,7 @@ export async function listChatThreads() {
 }
 
 export async function createChatThread(title = "Nueva conversación") {
+  const prisma = await getPrisma();
   return prisma.chatThread.create({
     data: {
       title,
@@ -35,11 +37,13 @@ export async function createChatThread(title = "Nueva conversación") {
 }
 
 export async function getThreadById(threadId: string) {
+  const prisma = await getPrisma();
   return prisma.chatThread.findUnique({ where: { id: threadId } });
 }
 
 /** Latest thread, or create one if the DB has none. */
 export async function getOrCreateLatestThread() {
+  const prisma = await getPrisma();
   const existing = await prisma.chatThread.findFirst({
     orderBy: { updatedAt: "desc" },
   });
@@ -56,6 +60,7 @@ export async function resolveThread(threadId?: string | null) {
 }
 
 export async function touchThread(threadId: string, titleHint?: string) {
+  const prisma = await getPrisma();
   const data: { updatedAt: Date; title?: string } = { updatedAt: new Date() };
   if (titleHint) {
     const thread = await getThreadById(threadId);
