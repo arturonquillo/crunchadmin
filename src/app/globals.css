@@ -116,6 +116,12 @@ a {
   color: #fff;
 }
 
+.nav-button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
 .shell {
   max-width: 1100px;
   margin: 0 auto;
@@ -235,9 +241,120 @@ a {
   background: var(--danger);
 }
 
+.btn.small {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.85rem;
+}
+
 .btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.form-error {
+  color: var(--danger);
+  font-weight: 600;
+  margin: 0.75rem 0 0;
+}
+
+.form-ok {
+  color: var(--accent-deep);
+  font-weight: 600;
+  margin: 0.75rem 0 0;
+}
+
+.notice {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  background: #eef6ea;
+  border: 1px solid rgba(47, 107, 58, 0.25);
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+}
+
+.notice.warn {
+  background: #fff7ed;
+  border-color: rgba(180, 83, 9, 0.3);
+}
+
+.url-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.86rem;
+  word-break: break-all;
+}
+
+.qr-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) 1fr;
+  gap: 1rem;
+  align-items: start;
+  margin-bottom: 1rem;
+}
+
+.qr-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #fff;
+  border-radius: 12px;
+}
+
+.day-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 88px;
+}
+
+.day-bars span {
+  flex: 1;
+  background: var(--accent);
+  border-radius: 4px 4px 0 0;
+  min-height: 4px;
+}
+
+.day-labels {
+  display: flex;
+  gap: 4px;
+  margin-top: 0.25rem;
+}
+
+.day-labels span {
+  flex: 1;
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.print-sheet {
+  max-width: 420px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.print-sheet h1 {
+  font-family: var(--font-display);
+  margin: 0.2rem 0 1rem;
+}
+
+.print-brand {
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin: 1.5rem 0 0.2rem;
+}
+
+.print-sheet img {
+  width: min(320px, 80vw);
+  height: auto;
+}
+
+.print-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--muted);
+  font-size: 0.85rem;
 }
 
 .field {
@@ -455,11 +572,33 @@ table.data th {
   }
 }
 
+@media (max-width: 800px) {
+  .qr-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 640px) {
   .brand-name {
     font-size: 1.2rem;
   }
   .shell {
     padding-top: 1.2rem;
+  }
+}
+
+@media print {
+  .site-header,
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  .shell {
+    max-width: none;
+    padding: 0;
   }
 }

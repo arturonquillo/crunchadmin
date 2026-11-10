@@ -18,7 +18,7 @@ const body = Manrope({
 export const metadata: Metadata = {
   title: "Crunchadmin",
   description:
-    "Centro operativo del restaurante: pendientes, recetas con escalado, menú y asistente.",
+    "Centro operativo del restaurante: pendientes, recetas, menú, códigos QR y datos del sitio.",
 };
 
 export default function RootLayout({
