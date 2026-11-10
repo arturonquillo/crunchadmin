@@ -4,6 +4,10 @@ const prisma = new PrismaClient();
 
 async function main() {
   // Clean slate for idempotent local seed
+  await prisma.qrScan.deleteMany();
+  await prisma.qrDestinationChange.deleteMany();
+  await prisma.qrCode.deleteMany();
+  await prisma.siteSettings.deleteMany();
   await prisma.chatAttachment.deleteMany();
   await prisma.chatMessage.deleteMany();
   await prisma.chatThread.deleteMany();
@@ -268,10 +272,28 @@ async function main() {
     },
   });
 
+  await prisma.siteSettings.create({
+    data: {
+      id: "default",
+      name: "Le Crunch",
+      instagram: "https://instagram.com/_lecrunch",
+    },
+  });
+
+  await prisma.qrCode.create({
+    data: {
+      code: "abc123",
+      name: "Instagram",
+      destinationUrl: "https://instagram.com/_lecrunch",
+      notes: "Ejemplo: el QR impreso apunta a /qr/abc123 y el destino se puede cambiar.",
+    },
+  });
+
   console.log("Seed OK");
   console.log("  Receta demo:", mayo.name, "→ escala 1 kg a 1,8 kg");
   console.log("  Menú item:", menuMayo.name);
   console.log("  User:", user.email);
+  console.log("  QR demo: /qr/abc123 → https://instagram.com/_lecrunch");
 }
 
 main()

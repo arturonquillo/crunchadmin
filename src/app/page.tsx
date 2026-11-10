@@ -2,16 +2,20 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { isOpenAIConfigured } from "@/lib/openai";
 import { isAuthConfigured } from "@/lib/auth";
+import { adminAuthEnabled } from "@/lib/admin-session";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [pendientesAbiertos, recetas, menuItems, reminders] = await Promise.all([
-    prisma.pendiente.count({ where: { estado: { not: "HECHO" } } }),
-    prisma.receta.count(),
-    prisma.menuItem.count(),
-    prisma.reminder.count({ where: { dismissed: false } }),
-  ]);
+  const [pendientesAbiertos, recetas, menuItems, reminders, qrCodes, qrScans] =
+    await Promise.all([
+      prisma.pendiente.count({ where: { estado: { not: "HECHO" } } }),
+      prisma.receta.count(),
+      prisma.menuItem.count(),
+      prisma.reminder.count({ where: { dismissed: false } }),
+      prisma.qrCode.count(),
+      prisma.qrScan.count(),
+    ]);
 
   return (
     <>
@@ -19,14 +23,14 @@ export default async function HomePage() {
         <h1>Crunchadmin</h1>
         <p>
           Centro operativo del restaurante: pendientes, fichas técnicas con
-          escalado, menú por canal y asistente. MVP listo para uso local.
+          escalado, menú por canal, códigos QR y datos del sitio.
         </p>
         <div className="form-actions">
-          <Link className="btn" href="/recetas">
-            Abrir recetas
+          <Link className="btn" href="/qrs">
+            Crear código QR
           </Link>
-          <Link className="btn secondary" href="/pendientes">
-            Ver pendientes
+          <Link className="btn secondary" href="/sitio">
+            Editar sitio
           </Link>
         </div>
       </section>
@@ -48,6 +52,14 @@ export default async function HomePage() {
           <strong>{reminders}</strong>
           <span>Recordatorios (stub)</span>
         </div>
+        <div className="stat">
+          <strong>{qrCodes}</strong>
+          <span>Códigos QR</span>
+        </div>
+        <div className="stat">
+          <strong>{qrScans}</strong>
+          <span>Lecturas de QR</span>
+        </div>
       </div>
 
       <section className="panel" style={{ marginTop: "1.25rem" }}>
@@ -62,10 +74,16 @@ export default async function HomePage() {
               : "stub activo (sin OPENAI_API_KEY)"}
           </li>
           <li>
-            Auth:{" "}
+            Acceso al panel:{" "}
+            {adminAuthEnabled()
+              ? "contraseña activa"
+              : "abierto hasta definir ADMIN_PASSWORD"}
+          </li>
+          <li>
+            Auth externa:{" "}
             {isAuthConfigured()
               ? "variables detectadas"
-              : "modo single-operator (sin login)"}
+              : "sin NextAuth, Clerk ni Supabase"}
           </li>
           <li>Base de datos: SQLite local (ver DATABASE_URL)</li>
         </ul>

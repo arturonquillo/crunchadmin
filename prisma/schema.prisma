@@ -200,3 +200,61 @@ model ChatAttachment {
   kind      String // image | audio | file
   createdAt DateTime    @default(now())
 }
+
+/// Datos básicos del sitio público. Una sola fila (id = "default").
+model SiteSettings {
+  id           String   @id @default("default")
+  name         String   @default("Le Crunch")
+  tagline      String   @default("")
+  description  String   @default("")
+  phone        String   @default("")
+  whatsapp     String   @default("")
+  email        String   @default("")
+  address      String   @default("")
+  hours        String   @default("")
+  instagram    String   @default("")
+  facebook     String   @default("")
+  tiktok       String   @default("")
+  mapsUrl      String   @default("")
+  announcement String   @default("")
+  updatedAt    DateTime @updatedAt
+}
+
+/// Código corto impreso. El destino puede cambiar sin reimprimir el QR.
+model QrCode {
+  id             String    @id @default(cuid())
+  /// Slug público: /qr/{code}
+  code           String    @unique
+  name           String
+  destinationUrl String
+  notes          String?
+  active         Boolean   @default(true)
+  scanCount      Int       @default(0)
+  lastScannedAt  DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  scans   QrScan[]
+  changes QrDestinationChange[]
+}
+
+model QrDestinationChange {
+  id        String   @id @default(cuid())
+  qrCodeId  String
+  qrCode    QrCode   @relation(fields: [qrCodeId], references: [id], onDelete: Cascade)
+  fromUrl   String
+  toUrl     String
+  createdAt DateTime @default(now())
+
+  @@index([qrCodeId, createdAt])
+}
+
+model QrScan {
+  id        String   @id @default(cuid())
+  qrCodeId  String
+  qrCode    QrCode   @relation(fields: [qrCodeId], references: [id], onDelete: Cascade)
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([qrCodeId, createdAt])
+}

@@ -32,6 +32,8 @@ Abre [http://localhost:3000](http://localhost:3000).
 - **Recetas** — ficha + versiones; **escalado** desde rendimiento o cualquier ingrediente base (conversión g/kg, ml/L).
 - **Menú** — ítem base + specs Foodie / tienda propia (pestañas).
 - **Chat** — texto + subida de imagen/archivo; OpenAI si hay `OPENAI_API_KEY`, si no stub amable.
+- **QR** — códigos cortos `/qr/abc123` con destino editable y conteo de lecturas. El impreso no cambia si cambia la URL final.
+- **Sitio** — nombre, contacto, redes, horario y aviso. El sitio público los lee en `GET /api/public/site`.
 - **Recordatorios / adjuntos de pendientes** — modelos listos; UI mínima / stub.
 
 ## Escalado (ejemplo seed)
@@ -58,11 +60,30 @@ Ver `.env.example`:
 | `DATABASE_URL` | SQLite `file:./dev.db` o PostgreSQL en prod |
 | `OPENAI_API_KEY` | Opcional — chat real |
 | `OPENAI_MODEL` | Default `gpt-4o-mini` |
+| `NEXT_PUBLIC_SITE_URL` | Origen de los QR impresos. Default `https://lecrunch.com.br` |
+| `ADMIN_PASSWORD` | Opcional. Si está definida, el panel pide contraseña. `/qr/...` sigue público |
 | `NEXTAUTH_*` / `CLERK_*` / `NEXT_PUBLIC_SUPABASE_*` | Auth (opcional; MVP single-operator) |
+
+## Códigos QR
+
+Crear un código en **QR** genera un enlace fijo:
+
+`https://lecrunch.com.br/qr/abc123` → destino actual (por ejemplo `https://instagram.com/_lecrunch`).
+
+Cada apertura con `GET` suma una lectura (fecha y tipo de dispositivo). Cambiar el destino responde con un redirect **302**, así los QR ya impresos pasan a la URL nueva sin reimprimir. Pausar un código deja de redirigir.
+
+Si el sitio público y este panel no son el mismo proceso, el dominio tiene que enviar `/qr/` a esta app:
+
+```nginx
+location /qr/ {
+  proxy_pass http://127.0.0.1:3000;
+  proxy_set_header Host $host;
+}
+```
 
 ## Auth
 
-Estructura lista en `src/lib/auth.ts` (`getCurrentUser`). Sin login en MVP: un solo operador. Conecta NextAuth, Clerk o Supabase Auth cuando quieras cerrar el acceso.
+Estructura lista en `src/lib/auth.ts` (`getCurrentUser`). Sin `ADMIN_PASSWORD` el panel queda abierto (un solo operador). Con la variable, todo el panel pide contraseña y los redirects públicos siguen abiertos. Conecta NextAuth, Clerk o Supabase Auth cuando quieras cuentas por persona.
 
 ## Fuera de alcance (MVP)
 

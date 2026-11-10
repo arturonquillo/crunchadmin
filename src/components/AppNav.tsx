@@ -2,17 +2,35 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const LINKS = [
   { href: "/", label: "Inicio" },
   { href: "/pendientes", label: "Pendientes" },
   { href: "/recetas", label: "Recetas" },
   { href: "/menu", label: "Menú" },
+  { href: "/qrs", label: "QR" },
+  { href: "/sitio", label: "Sitio" },
   { href: "/chat", label: "Chat" },
 ];
 
 export function AppNav() {
   const pathname = usePathname();
+  const [canLogout, setCanLogout] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/auth/status")
+      .then((res) => res.json())
+      .then((data: { enabled?: boolean; authenticated?: boolean }) => {
+        setCanLogout(Boolean(data.enabled && data.authenticated));
+      })
+      .catch(() => setCanLogout(false));
+  }, [pathname]);
+
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.assign("/login");
+  }
 
   return (
     <header className="site-header">
@@ -35,6 +53,11 @@ export function AppNav() {
               </Link>
             );
           })}
+          {canLogout && (
+            <button type="button" className="nav-link nav-button" onClick={logout}>
+              Salir
+            </button>
+          )}
         </nav>
       </div>
     </header>
