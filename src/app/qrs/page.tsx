@@ -71,20 +71,25 @@ export default function QrsPage() {
   }
 
   return (
-    <>
-      <h1 className="section-title">Códigos QR</h1>
-      <p className="section-sub">
-        Cada código impreso apunta a un enlace corto. Si el destino cambia, se
-        actualiza aquí y no hace falta volver a imprimir.
-      </p>
-
-      <section className="panel">
-        <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Nuevo código</h2>
-        <p className="section-sub" style={{ marginBottom: "0.8rem" }}>
-          Ejemplo: <span className="url-code">lecrunch.com.br/qr/abc123</span> abre
-          Instagram, la carta o la dirección que indiques.
+    <div className="ops-page">
+      <header className="ops-hero">
+        <p className="ops-kicker">Enlaces impresos</p>
+        <h1 className="ops-title">Códigos QR</h1>
+        <p className="ops-lede">
+          Cada código impreso apunta a un enlace corto fijo. Si el destino cambia, se
+          actualiza aquí — sin reimprimir.
         </p>
-        <form onSubmit={onCreate}>
+      </header>
+
+      <section className="ops-sheet ops-enter" aria-label="Crear código">
+        <div className="ops-sheet-head">
+          <h2 className="ops-sheet-title">Nuevo código</h2>
+          <p className="ops-sheet-sub">
+            Ejemplo: <span className="url-code">lecrunch.com.br/qr/abc123</span> abre
+            Instagram, la carta o la dirección que indiques.
+          </p>
+        </div>
+        <form className="ops-form" onSubmit={onCreate}>
           <div className="form-grid">
             <div className="field">
               <label htmlFor="qr-name">Nombre</label>
@@ -105,7 +110,7 @@ export default function QrsPage() {
                 onChange={(e) => setForm({ ...form, code: e.target.value })}
               />
             </div>
-            <div className="field" style={{ gridColumn: "1 / -1" }}>
+            <div className="field field-span">
               <label htmlFor="qr-url">Destino</label>
               <input
                 id="qr-url"
@@ -115,7 +120,7 @@ export default function QrsPage() {
                 onChange={(e) => setForm({ ...form, destinationUrl: e.target.value })}
               />
             </div>
-            <div className="field" style={{ gridColumn: "1 / -1" }}>
+            <div className="field field-span">
               <label htmlFor="qr-notes">Notas</label>
               <input
                 id="qr-notes"
@@ -127,74 +132,73 @@ export default function QrsPage() {
           </div>
           {error && <p className="form-error">{error}</p>}
           <div className="form-actions">
-            <button className="btn" type="submit" disabled={saving}>
+            <button className="btn btn-touch" type="submit" disabled={saving}>
               {saving ? "Creando…" : "Crear QR"}
             </button>
           </div>
         </form>
       </section>
 
-      <section className="panel">
+      <section className="ops-list-block ops-enter ops-enter-delay" aria-label="Lista de códigos">
+        <div className="ops-sheet-head ops-sheet-head--flush">
+          <h2 className="ops-sheet-title">Activos e impresos</h2>
+          <p className="ops-sheet-sub">
+            {loading ? "Cargando…" : `${items.length} código${items.length === 1 ? "" : "s"}`}
+          </p>
+        </div>
+
         {loading ? (
           <p className="empty">Cargando…</p>
         ) : items.length === 0 ? (
           <p className="empty">Todavía no hay códigos. Crea el primero arriba.</p>
         ) : (
-          <div className="table-wrap">
-            <table className="data">
-              <thead>
-                <tr>
-                  <th>Nombre</th>
-                  <th>Enlace impreso</th>
-                  <th>Destino</th>
-                  <th>Lecturas</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <tr key={item.id}>
-                    <td>
-                      <strong>{item.name}</strong>
-                      <div>
-                        {item.active ? (
-                          <span className="badge">Activo</span>
-                        ) : (
-                          <span className="badge warn">En pausa</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="url-code">{item.shortUrl.replace(/^https?:\/\//, "")}</td>
-                    <td className="url-code">{item.destinationUrl}</td>
-                    <td>
-                      <strong>{item.scanCount}</strong>
-                      {item.lastScannedAt && (
-                        <div style={{ color: "var(--muted)", fontSize: "0.8rem" }}>
-                          {formatWhen(item.lastScannedAt)}
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      <div className="form-actions" style={{ marginTop: 0 }}>
-                        <Link className="btn small" href={`/qrs/${item.id}`}>
-                          Abrir
-                        </Link>
-                        <button
-                          type="button"
-                          className="btn secondary small"
-                          onClick={() => toggle(item)}
-                        >
-                          {item.active ? "Pausar" : "Activar"}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ul className="qr-list">
+            {items.map((item, index) => (
+              <li
+                key={item.id}
+                className="qr-row"
+                style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
+              >
+                <div className="qr-row-main">
+                  <div className="qr-row-title">
+                    <strong>{item.name}</strong>
+                    {item.active ? (
+                      <span className="badge">Activo</span>
+                    ) : (
+                      <span className="badge warn">En pausa</span>
+                    )}
+                  </div>
+                  <p className="url-code qr-row-short">
+                    {item.shortUrl.replace(/^https?:\/\//, "")}
+                  </p>
+                  <p className="url-code qr-row-dest">{item.destinationUrl}</p>
+                </div>
+                <div className="qr-row-meta">
+                  <div className="qr-row-scans">
+                    <strong>{item.scanCount}</strong>
+                    <span>lecturas</span>
+                    {item.lastScannedAt && (
+                      <span className="qr-row-when">{formatWhen(item.lastScannedAt)}</span>
+                    )}
+                  </div>
+                  <div className="form-actions qr-row-actions">
+                    <Link className="btn small btn-touch" href={`/qrs/${item.id}`}>
+                      Abrir
+                    </Link>
+                    <button
+                      type="button"
+                      className="btn secondary small btn-touch"
+                      onClick={() => toggle(item)}
+                    >
+                      {item.active ? "Pausar" : "Activar"}
+                    </button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
-    </>
+    </div>
   );
 }

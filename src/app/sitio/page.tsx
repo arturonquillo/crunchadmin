@@ -97,24 +97,26 @@ export default function SitioPage() {
   }
 
   return (
-    <>
-      <h1 className="section-title">Sitio</h1>
-      <p className="section-sub">
-        Datos básicos del local. El sitio público puede leerlos en{" "}
-        <span className="url-code">/api/public/site</span>.
-      </p>
+    <div className="ops-page">
+      <header className="ops-hero">
+        <p className="ops-kicker">Datos públicos</p>
+        <h1 className="ops-title">Sitio</h1>
+        <p className="ops-lede">
+          Nombre, contacto, horario y redes. El sitio público puede leerlos en{" "}
+          <span className="url-code">/api/public/site</span>.
+        </p>
+      </header>
 
-      <section className="panel">
+      <section className="ops-sheet ops-enter" aria-label="Editar sitio">
         {loading ? (
           <p className="empty">Cargando…</p>
         ) : (
-          <form onSubmit={onSubmit}>
+          <form className="ops-form" onSubmit={onSubmit}>
             <div className="form-grid">
               {FIELDS.map((field) => (
                 <div
                   key={field.key}
-                  className="field"
-                  style={field.area ? { gridColumn: "1 / -1" } : undefined}
+                  className={`field${field.area ? " field-span" : ""}`}
                 >
                   <label htmlFor={field.key}>{field.label}</label>
                   {field.area ? (
@@ -130,22 +132,20 @@ export default function SitioPage() {
                       onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
                     />
                   )}
-                  {field.hint && (
-                    <span style={{ color: "var(--muted)", fontSize: "0.78rem" }}>{field.hint}</span>
-                  )}
+                  {field.hint && <span className="field-hint">{field.hint}</span>}
                 </div>
               ))}
             </div>
             {error && <p className="form-error">{error}</p>}
             {saved && <p className="form-ok">Cambios guardados.</p>}
             <div className="form-actions">
-              <button className="btn" type="submit" disabled={saving}>
+              <button className="btn btn-touch" type="submit" disabled={saving}>
                 {saving ? "Guardando…" : "Guardar sitio"}
               </button>
             </div>
           </form>
         )}
       </section>
-    </>
+    </div>
   );
 }
