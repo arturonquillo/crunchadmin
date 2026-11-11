@@ -106,69 +106,76 @@ export default function QrDetailPage() {
 
   if (!qr) {
     return (
-      <>
-        <h1 className="section-title">Código QR</h1>
+      <div className="ops-page">
+        <header className="ops-hero">
+          <p className="ops-kicker">Código QR</p>
+          <h1 className="ops-title">Cargando…</h1>
+        </header>
         <p className={error ? "form-error" : "empty"}>{error || "Cargando…"}</p>
-      </>
+      </div>
     );
   }
 
   const maxDaily = Math.max(1, ...qr.daily.map((day) => day.count));
 
   return (
-    <>
-      <p className="section-sub" style={{ marginBottom: "0.4rem" }}>
+    <div className="ops-page">
+      <p className="ops-back">
         <Link href="/qrs">← Códigos QR</Link>
       </p>
-      <h1 className="section-title">{qr.name}</h1>
-      <p className="section-sub">
-        El código impreso abre siempre el enlace corto. Cambia el destino cuando
-        quieras, sin reimprimir.
-      </p>
+      <header className="ops-hero">
+        <p className="ops-kicker">{qr.active ? "Enlace activo" : "En pausa"}</p>
+        <h1 className="ops-title">{qr.name}</h1>
+        <p className="ops-lede">
+          El código impreso abre siempre el enlace corto. Cambia el destino cuando
+          quieras, sin reimprimir.
+        </p>
+      </header>
       {error && <p className="form-error">{error}</p>}
       {saved && <p className="form-ok">{saved}</p>}
 
-      <div className="qr-layout">
-        <section className="panel qr-card">
+      <div className="qr-layout ops-enter">
+        <section className="ops-sheet qr-preview" aria-label="Vista previa del QR">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={`/api/qrs/${qr.id}/png`} alt={`QR ${qr.code}`} width={1024} height={1024} />
-          <p className="url-code" style={{ margin: "0.75rem 0 0.35rem" }}>
+          <p className="url-code qr-preview-url">
             {qr.shortUrl.replace(/^https?:\/\//, "")}
           </p>
-          <div className="form-actions" style={{ marginTop: "0.65rem" }}>
-            <button type="button" className="btn secondary small" onClick={copyLink}>
+          <div className="form-actions">
+            <button type="button" className="btn secondary small btn-touch" onClick={copyLink}>
               {copied ? "Copiado" : "Copiar enlace"}
             </button>
-            <a className="btn secondary small" href={`/api/qrs/${qr.id}/png?download=1`}>
+            <a className="btn secondary small btn-touch" href={`/api/qrs/${qr.id}/png?download=1`}>
               Descargar PNG
             </a>
-            <Link className="btn secondary small" href={`/qrs/${qr.id}/imprimir`}>
+            <Link className="btn secondary small btn-touch" href={`/qrs/${qr.id}/imprimir`}>
               Imprimir
             </Link>
           </div>
         </section>
 
-        <div>
-          <section className="panel">
-            <div className="grid-stats">
-              <div className="stat">
+        <div className="qr-detail-stack">
+          <section className="ops-sheet">
+            <div className="ops-stat-row">
+              <div className="ops-stat">
                 <strong>{qr.scanCount}</strong>
                 <span>Lecturas</span>
               </div>
-              <div className="stat">
-                <strong style={{ fontSize: "1.15rem" }}>
+              <div className="ops-stat">
+                <strong className="ops-stat-text">
                   {qr.lastScannedAt ? formatWhen(qr.lastScannedAt) : "—"}
                 </strong>
-                <span>Última lectura (Maceió)</span>
+                <span>Última (Maceió)</span>
               </div>
-              <div className="stat">
-                <strong style={{ fontSize: "1.15rem" }}>{qr.active ? "Activo" : "En pausa"}</strong>
-                <span>Estado del enlace</span>
+              <div className="ops-stat">
+                <strong className="ops-stat-text">{qr.active ? "Activo" : "En pausa"}</strong>
+                <span>Estado</span>
               </div>
             </div>
             <div className="form-actions">
               <button
                 type="button"
-                className="btn secondary"
+                className="btn secondary btn-touch"
                 onClick={() =>
                   patch(
                     { active: !qr.active },
@@ -178,19 +185,21 @@ export default function QrDetailPage() {
               >
                 {qr.active ? "Pausar" : "Activar"}
               </button>
-              <button type="button" className="btn danger" onClick={remove}>
+              <button type="button" className="btn danger btn-touch" onClick={remove}>
                 Eliminar
               </button>
             </div>
           </section>
 
-          <section className="panel">
-            <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Destino</h2>
+          <section className="ops-sheet">
+            <div className="ops-sheet-head">
+              <h2 className="ops-sheet-title">Destino</h2>
+            </div>
             <p className="notice">
               Lo impreso es <span className="url-code">{qr.shortUrl.replace(/^https?:\/\//, "")}</span>.
               Si el servicio cambia de dirección, guarda el destino nuevo aquí.
             </p>
-            <form onSubmit={onDestination}>
+            <form className="ops-form" onSubmit={onDestination}>
               <div className="field" style={{ marginTop: "0.8rem" }}>
                 <label htmlFor="destination">URL de destino</label>
                 <input
@@ -201,7 +210,7 @@ export default function QrDetailPage() {
                 />
               </div>
               <div className="form-actions">
-                <button className="btn" type="submit">
+                <button className="btn btn-touch" type="submit">
                   Guardar destino
                 </button>
               </div>
@@ -210,9 +219,7 @@ export default function QrDetailPage() {
               <div className="version-list" style={{ marginTop: "0.9rem" }}>
                 {qr.changes.map((change) => (
                   <div key={change.id} className="version-item">
-                    <div style={{ color: "var(--muted)", fontSize: "0.78rem" }}>
-                      {formatWhen(change.createdAt)}
-                    </div>
+                    <div className="field-hint">{formatWhen(change.createdAt)}</div>
                     <div className="url-code">{change.fromUrl}</div>
                     <div className="url-code">→ {change.toUrl}</div>
                   </div>
@@ -223,9 +230,11 @@ export default function QrDetailPage() {
         </div>
       </div>
 
-      <section className="panel">
-        <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Lecturas por día</h2>
-        <p className="section-sub">Últimos 14 días, hora de Maceió.</p>
+      <section className="ops-sheet ops-enter ops-enter-delay">
+        <div className="ops-sheet-head">
+          <h2 className="ops-sheet-title">Lecturas por día</h2>
+          <p className="ops-sheet-sub">Últimos 14 días, hora de Maceió.</p>
+        </div>
         <div className="day-bars" aria-hidden>
           {qr.daily.map((day) => (
             <span
@@ -242,29 +251,33 @@ export default function QrDetailPage() {
         </div>
       </section>
 
-      <section className="panel">
-        <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Nombre y notas</h2>
-        <form onSubmit={onMeta}>
+      <section className="ops-sheet ops-enter ops-enter-delay">
+        <div className="ops-sheet-head">
+          <h2 className="ops-sheet-title">Nombre y notas</h2>
+        </div>
+        <form className="ops-form" onSubmit={onMeta}>
           <div className="form-grid">
             <div className="field">
               <label htmlFor="meta-name">Nombre</label>
               <input id="meta-name" required value={name} onChange={(e) => setName(e.target.value)} />
             </div>
-            <div className="field" style={{ gridColumn: "1 / -1" }}>
+            <div className="field field-span">
               <label htmlFor="meta-notes">Dónde está impreso</label>
               <textarea id="meta-notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
           </div>
           <div className="form-actions">
-            <button className="btn secondary" type="submit">
+            <button className="btn secondary btn-touch" type="submit">
               Guardar datos
             </button>
           </div>
         </form>
       </section>
 
-      <section className="panel">
-        <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Últimas lecturas</h2>
+      <section className="ops-sheet ops-enter ops-enter-delay">
+        <div className="ops-sheet-head">
+          <h2 className="ops-sheet-title">Últimas lecturas</h2>
+        </div>
         {qr.latestScans.length === 0 ? (
           <p className="empty">Todavía no hubo lecturas.</p>
         ) : (
@@ -288,6 +301,6 @@ export default function QrDetailPage() {
           </div>
         )}
       </section>
-    </>
+    </div>
   );
 }

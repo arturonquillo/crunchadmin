@@ -45,10 +45,16 @@ export default function LoginPage() {
   }
 
   return (
-    <>
-      <h1 className="section-title">Entrar</h1>
-      <p className="section-sub">Panel de Le Crunch.</p>
-      <section className="panel" style={{ maxWidth: 420 }}>
+    <div className="ops-page ops-login">
+      <header className="ops-hero ops-hero--center">
+        <p className="ops-kicker">Le Crunch · ops</p>
+        <h1 className="ops-title">Entrar al panel</h1>
+        <p className="ops-lede">
+          Acceso al centro operativo: QR impresos, sitio y el día a día del local.
+        </p>
+      </header>
+
+      <section className="ops-sheet ops-sheet--narrow ops-enter" aria-label="Inicio de sesión">
         {enabled === false && (
           <p className="notice">
             No hay contraseña configurada. El panel está abierto en este entorno. Define{" "}
@@ -56,7 +62,7 @@ export default function LoginPage() {
           </p>
         )}
         {enabled && (
-          <form onSubmit={onSubmit}>
+          <form className="ops-form" onSubmit={onSubmit}>
             <div className="field">
               <label htmlFor="password">Contraseña</label>
               <input
@@ -70,13 +76,13 @@ export default function LoginPage() {
             </div>
             {error && <p className="form-error">{error}</p>}
             <div className="form-actions">
-              <button className="btn" type="submit" disabled={sending}>
+              <button className="btn btn-touch" type="submit" disabled={sending}>
                 {sending ? "Entrando…" : "Entrar"}
               </button>
             </div>
           </form>
         )}
       </section>
-    </>
+    </div>
   );
 }
