@@ -59,6 +59,27 @@ describe("sameOriginMutation", () => {
       })
     ).toBe(true);
   });
+
+  it("allows browser Origin when Next sees the proxy loopback origin", () => {
+    const previous = process.env.NEXT_PUBLIC_SITE_URL;
+    process.env.NEXT_PUBLIC_SITE_URL = "https://lecrunch.com.br";
+    expect(
+      sameOriginMutation({
+        method: "PATCH",
+        headers: {
+          get: (name: string) => {
+            const key = name.toLowerCase();
+            if (key === "origin") return "https://lecrunch.com.br";
+            if (key === "x-forwarded-host") return "lecrunch.com.br";
+            if (key === "x-forwarded-proto") return "https";
+            return null;
+          },
+        },
+        nextUrl: { origin: "http://127.0.0.1:3010" },
+      })
+    ).toBe(true);
+    process.env.NEXT_PUBLIC_SITE_URL = previous;
+  });
 });
 
 describe("adminMisconfiguredInProduction", () => {

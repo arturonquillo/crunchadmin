@@ -83,9 +83,56 @@ export function safeNextPath(value: string | null): string {
   return value;
 }
 
+function firstHeaderValue(value: string | null): string | null {
+  if (!value) return null;
+  const first = value.split(",")[0]?.trim();
+  return first || null;
+}
+
+/** Origins this deployment considers first-party (proxy + public URL aware). */
+export function trustedOrigins(req: {
+  headers: { get(name: string): string | null };
+  nextUrl?: { origin: string };
+  url?: string;
+}): string[] {
+  const origins = new Set<string>();
+
+  if (req.nextUrl?.origin) origins.add(req.nextUrl.origin);
+  try {
+    if (req.url) origins.add(new URL(req.url).origin);
+  } catch {
+    /* ignore */
+  }
+
+  const host =
+    firstHeaderValue(req.headers.get("x-forwarded-host")) ||
+    firstHeaderValue(req.headers.get("host"));
+  const proto =
+    firstHeaderValue(req.headers.get("x-forwarded-proto")) ||
+    (isProductionRuntime() ? "https" : "http");
+  if (host) origins.add(`${proto}://${host}`);
+
+  const site = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (site) {
+    try {
+      origins.add(new URL(site).origin);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  // Common local / loopback variants when operators hit :3010 directly.
+  origins.add("http://127.0.0.1:3010");
+  origins.add("http://localhost:3010");
+
+  return [...origins];
+}
+
 /**
  * Optional CSRF: mutating requests must show a same-origin Origin or Referer.
  * SameSite=Lax already blocks most cross-site cookie sends; this is defense in depth.
+ * Compares against forwarded Host/Proto and NEXT_PUBLIC_SITE_URL because Caddy
+ * reverse-proxies to 127.0.0.1:3010 (nextUrl.origin alone is not enough).
  */
 export function sameOriginMutation(req: {
   method: string;
@@ -96,31 +143,24 @@ export function sameOriginMutation(req: {
   const method = req.method.toUpperCase();
   if (method === "GET" || method === "HEAD" || method === "OPTIONS") return true;
 
-  const hostOrigin = (() => {
-    if (req.nextUrl?.origin) return req.nextUrl.origin;
-    try {
-      return new URL(req.url || "").origin;
-    } catch {
-      return null;
-    }
-  })();
-  if (!hostOrigin) return false;
+  const allowed = trustedOrigins(req);
+  if (allowed.length === 0) return false;
 
   const origin = req.headers.get("origin");
   if (origin) {
-    return origin === hostOrigin;
+    return allowed.includes(origin);
   }
 
   const referer = req.headers.get("referer");
   if (referer) {
     try {
-      return new URL(referer).origin === hostOrigin;
+      return allowed.includes(new URL(referer).origin);
     } catch {
       return false;
     }
   }
 
   // Non-browser clients (curl) without Origin/Referer — allow when session cookie present;
-  // browsers always send Origin on cross-origin and usually on same-origin POST/fetch.
+  // browsers always send Origin on fetch POST.
   return true;
 }
