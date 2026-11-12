@@ -13,16 +13,25 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
 
+  const [misconfigured, setMisconfigured] = useState(false);
+
   useEffect(() => {
     fetch("/api/auth/status")
       .then((res) => res.json())
-      .then((data: { enabled: boolean; authenticated: boolean }) => {
-        setEnabled(data.enabled);
-        if (data.authenticated && data.enabled) {
-          const next = new URLSearchParams(window.location.search).get("next");
-          window.location.replace(safeNextPath(next));
+      .then(
+        (data: {
+          enabled: boolean;
+          authenticated: boolean;
+          misconfigured?: boolean;
+        }) => {
+          setMisconfigured(Boolean(data.misconfigured));
+          setEnabled(data.enabled);
+          if (data.authenticated && data.enabled) {
+            const next = new URLSearchParams(window.location.search).get("next");
+            window.location.replace(safeNextPath(next));
+          }
         }
-      })
+      )
       .catch(() => setEnabled(false));
   }, []);
 
@@ -37,7 +46,11 @@ export default function LoginPage() {
     });
     setSending(false);
     if (!res.ok) {
-      setError("Contraseña incorrecta");
+      setError(
+        res.status === 429
+          ? "Demasiados intentos. Espera un momento e inténtalo de nuevo."
+          : "Contraseña incorrecta"
+      );
       return;
     }
     const next = new URLSearchParams(window.location.search).get("next");
@@ -55,13 +68,19 @@ export default function LoginPage() {
       </header>
 
       <section className="ops-sheet ops-sheet--narrow ops-enter" aria-label="Inicio de sesión">
-        {enabled === false && (
+        {misconfigured && (
+          <p className="notice">
+            El servidor de producción no tiene <span className="url-code">ADMIN_PASSWORD</span>.
+            Configúralo en el entorno y reinicia el servicio antes de usar el panel.
+          </p>
+        )}
+        {!misconfigured && enabled === false && (
           <p className="notice">
             No hay contraseña configurada. El panel está abierto en este entorno. Define{" "}
             <span className="url-code">ADMIN_PASSWORD</span> antes de publicarlo.
           </p>
         )}
-        {enabled && (
+        {!misconfigured && enabled && (
           <form className="ops-form" onSubmit={onSubmit}>
             <div className="field">
               <label htmlFor="password">Contraseña</label>

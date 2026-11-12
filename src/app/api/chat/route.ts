@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { chatCompletion, isOpenAIConfigured } from "@/lib/openai";
+import { requireAdmin } from "@/lib/require-admin";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
@@ -24,7 +25,10 @@ async function getOrCreateThread() {
   });
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const denied = await requireAdmin(req, { mutate: false });
+  if (denied) return denied;
+
   const thread = await getOrCreateThread();
   const messages = await prisma.chatMessage.findMany({
     where: { threadId: thread.id, role: { not: "SYSTEM" } },
@@ -39,6 +43,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
+
   const contentType = req.headers.get("content-type") || "";
   let text = "";
   const imageDataUrls: string[] = [];

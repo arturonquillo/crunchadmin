@@ -77,7 +77,7 @@ export default async function HomePage() {
             Acceso al panel:{" "}
             {adminAuthEnabled()
               ? "contraseña activa"
-              : "abierto hasta definir ADMIN_PASSWORD"}
+              : "abierto en desarrollo hasta definir ADMIN_PASSWORD"}
           </li>
           <li>
             Auth externa:{" "}

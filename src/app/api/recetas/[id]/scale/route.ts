@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/require-admin";
 import { scaleRecipe, ScaleError } from "@/lib/scaling";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function POST(req: NextRequest, ctx: Ctx) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
+
   const { id } = await ctx.params;
   const body = await req.json();
 

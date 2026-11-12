@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/require-admin";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const denied = await requireAdmin(req, { mutate: false });
+  if (denied) return denied;
+
   const recetas = await prisma.receta.findMany({
     orderBy: { name: "asc" },
     include: {
@@ -15,6 +19,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
+
   const body = await req.json();
   const name = String(body.name ?? "").trim();
   if (!name) {
