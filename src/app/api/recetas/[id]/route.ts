@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/require-admin";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-export async function GET(_req: NextRequest, ctx: Ctx) {
+export async function GET(req: NextRequest, ctx: Ctx) {
+  const denied = await requireAdmin(req, { mutate: false });
+  if (denied) return denied;
+
   const { id } = await ctx.params;
   const receta = await prisma.receta.findUnique({
     where: { id },
@@ -22,6 +26,9 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
 
 /** Create a new version from provided lines (versioning) */
 export async function POST(req: NextRequest, ctx: Ctx) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
+
   const { id } = await ctx.params;
   const receta = await prisma.receta.findUnique({
     where: { id },

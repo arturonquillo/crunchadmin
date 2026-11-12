@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { CATEGORIAS, ESTADOS, PRIORIDADES } from "@/lib/labels";
+import { requireAdmin } from "@/lib/require-admin";
 
 export async function GET(req: NextRequest) {
+  const denied = await requireAdmin(req, { mutate: false });
+  if (denied) return denied;
+
   const { searchParams } = new URL(req.url);
   const categoria = searchParams.get("categoria");
   const estado = searchParams.get("estado");
@@ -19,6 +23,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
+
   const body = await req.json();
   const title = String(body.title ?? "").trim();
   if (!title) {

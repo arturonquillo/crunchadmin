@@ -7,12 +7,16 @@ import {
   normalizeQrCode,
   publicQrUrl,
 } from "@/lib/qr";
+import { requireAdmin } from "@/lib/require-admin";
 
 function withShortUrl<T extends { code: string }>(qr: T) {
   return { ...qr, shortUrl: publicQrUrl(qr.code) };
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const denied = await requireAdmin(req, { mutate: false });
+  if (denied) return denied;
+
   const items = await prisma.qrCode.findMany({
     orderBy: { createdAt: "desc" },
   });
@@ -20,6 +24,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
+
   const body = await req.json().catch(() => null);
   if (!body || typeof body !== "object") {
     return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });

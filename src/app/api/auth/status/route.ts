@@ -1,16 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   ADMIN_COOKIE,
-  adminAuthEnabled,
-  expectedSessionToken,
+  adminMisconfiguredInProduction,
+  readAdminSession,
 } from "@/lib/admin-session";
 
 export async function GET(req: NextRequest) {
-  const enabled = adminAuthEnabled();
-  const expected = await expectedSessionToken();
-  const token = req.cookies.get(ADMIN_COOKIE)?.value;
+  if (adminMisconfiguredInProduction()) {
+    return NextResponse.json({
+      enabled: false,
+      authenticated: false,
+      misconfigured: true,
+    });
+  }
+
+  const session = await readAdminSession(req.cookies.get(ADMIN_COOKIE)?.value);
   return NextResponse.json({
-    enabled,
-    authenticated: !enabled || (Boolean(expected) && token === expected),
+    enabled: session.enabled,
+    authenticated: session.authenticated,
+    misconfigured: false,
   });
 }

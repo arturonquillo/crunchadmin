@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import QRCode from "qrcode";
 import { prisma } from "@/lib/prisma";
 import { publicQrUrl } from "@/lib/qr";
+import { requireAdmin } from "@/lib/require-admin";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(req: NextRequest, ctx: Ctx) {
+  const denied = await requireAdmin(req, { mutate: false });
+  if (denied) return denied;
+
   const { id } = await ctx.params;
   const qr = await prisma.qrCode.findUnique({ where: { id } });
   if (!qr) return NextResponse.json({ error: "No encontrado" }, { status: 404 });

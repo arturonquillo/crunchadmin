@@ -6,6 +6,7 @@ import {
   normalizeDestination,
   publicQrUrl,
 } from "@/lib/qr";
+import { requireAdmin } from "@/lib/require-admin";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -13,7 +14,10 @@ function withShortUrl<T extends { code: string }>(qr: T) {
   return { ...qr, shortUrl: publicQrUrl(qr.code) };
 }
 
-export async function GET(_req: NextRequest, ctx: Ctx) {
+export async function GET(req: NextRequest, ctx: Ctx) {
+  const denied = await requireAdmin(req, { mutate: false });
+  if (denied) return denied;
+
   const { id } = await ctx.params;
   const qr = await prisma.qrCode.findUnique({
     where: { id },
@@ -52,6 +56,9 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
 }
 
 export async function PATCH(req: NextRequest, ctx: Ctx) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
+
   const { id } = await ctx.params;
   const body = await req.json().catch(() => null);
   if (!body || typeof body !== "object") {
@@ -121,7 +128,10 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   return NextResponse.json(withShortUrl(updated));
 }
 
-export async function DELETE(_req: NextRequest, ctx: Ctx) {
+export async function DELETE(req: NextRequest, ctx: Ctx) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
+
   const { id } = await ctx.params;
   try {
     await prisma.qrCode.delete({ where: { id } });

@@ -1,10 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isValidQrCode, normalizeDestination, normalizeQrCode } from "@/lib/qr";
+import { clientIp, pruneRateLimits, rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 type Ctx = { params: Promise<{ code: string }> };
+
+function qrScanLimited(req: NextRequest): NextResponse | null {
+  pruneRateLimits();
+  const limited = rateLimit(`qr-scan:${clientIp(req)}`, 120, 60 * 1000);
+  if (limited.ok) return null;
+  return new NextResponse("Too Many Requests", {
+    status: 429,
+    headers: {
+      "Retry-After": String(limited.retryAfterSec),
+      "Cache-Control": "no-store",
+    },
+  });
+}
 
 function escapeHtml(value: string): string {
   return value
@@ -63,7 +77,10 @@ function redirectTo(url: string) {
   });
 }
 
-export async function HEAD(_req: NextRequest, ctx: Ctx) {
+export async function HEAD(req: NextRequest, ctx: Ctx) {
+  const limited = qrScanLimited(req);
+  if (limited) return limited;
+
   const { code } = await ctx.params;
   const qr = await lookup(code);
   if (!qr || !qr.active) return new NextResponse(null, { status: 404 });
@@ -73,6 +90,9 @@ export async function HEAD(_req: NextRequest, ctx: Ctx) {
 }
 
 export async function GET(req: NextRequest, ctx: Ctx) {
+  const limited = qrScanLimited(req);
+  if (limited) return limited;
+
   const { code } = await ctx.params;
   const qr = await lookup(code);
   if (!qr) {
