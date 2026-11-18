@@ -28,10 +28,14 @@
   --text-xl: 1.0625rem; /* ~17px page / section titles */
   --text-2xl: 1.1875rem; /* ~19px rare display */
   --text-hero: clamp(1.25rem, 3.2vw, 1.65rem);
+  /* ≥16px so iOS Safari does not zoom on focus (keep body scale compact) */
+  --text-input: 1rem;
   --leading-tight: 1.25;
   --leading-snug: 1.35;
   --leading-body: 1.45;
   --touch-min: 2.75rem; /* ~44px */
+  /* visualViewport-synced height on chat (fallback: dynamic viewport) */
+  --app-vvh: 100dvh;
 }
 
 @theme inline {
@@ -1144,8 +1148,8 @@ table.data th {
 /* —— Chat module (Hablar + historial) —— */
 /* Definite viewport height so flex:1 children fill; composer flush to bottom (no bottom nav). */
 .app-chrome.is-chat {
-  height: 100dvh;
-  max-height: 100dvh;
+  height: var(--app-vvh, 100dvh);
+  max-height: var(--app-vvh, 100dvh);
   overflow: hidden;
 }
 
@@ -1154,7 +1158,8 @@ table.data th {
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* Composer owns safe-area padding so the sticky bar sits above the home indicator. */
+  padding-bottom: 0;
 }
 
 .hablar-root {
@@ -1549,11 +1554,14 @@ table.data th {
 
 .hablar-composer {
   flex: 0 0 auto;
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
   display: grid;
   grid-template-columns: auto auto 1fr auto;
   gap: 0.45rem;
   align-items: end;
-  padding: 0.65rem 0.85rem 0.85rem;
+  padding: 0.65rem 0.85rem calc(0.85rem + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid rgba(26, 34, 24, 0.08);
   background: rgba(247, 243, 232, 0.96);
 }
@@ -1673,7 +1681,9 @@ table.data th {
 .hablar-input {
   width: 100%;
   min-height: var(--touch-min);
-  font-size: var(--text-base);
+  /* 16px+ avoids iOS Safari input zoom; do not use font shorthand (it resets size). */
+  font-family: inherit;
+  font-size: var(--text-input);
   /* JS grows up to 8 lines; overflow scrolls only past that */
   max-height: calc(1.4em * 8 + 1.3rem);
   resize: none;
@@ -1682,7 +1692,6 @@ table.data th {
   border: 1px solid rgba(26, 34, 24, 0.14);
   background: #fffef9;
   padding: 0.65rem 0.8rem;
-  font: inherit;
   line-height: 1.4;
   color: var(--ink);
   field-sizing: content;

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Fraunces, Manrope } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
@@ -26,6 +26,14 @@ export async function generateMetadata(): Promise<Metadata> {
     description: t("description"),
   };
 }
+
+/* Prefer 16px inputs over locking pinch-zoom (no maximumScale). */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  interactiveWidget: "resizes-content",
+};
 
 export default async function RootLayout({
   children,
