@@ -67,9 +67,13 @@ export default function InventarioPage() {
   const [viewMode, setViewMode] = useState<"lista" | "grid">("grid");
   const [editItem, setEditItem] = useState<Insumo | null>(null);
   const [editForm, setEditForm] = useState({
+    name: "",
+    baseUnit: "kg",
+    category: "SECOS" as InsumoCategoria,
     packSize: "",
     minQty: "",
     reorderHint: "",
+    fifoNote: "",
   });
   const [editSaving, setEditSaving] = useState(false);
 
@@ -230,15 +234,25 @@ export default function InventarioPage() {
   function openEditLimits(item: Insumo) {
     setEditItem(item);
     setEditForm({
+      name: item.name,
+      baseUnit: item.baseUnit || "kg",
+      category: (item.category as InsumoCategoria) || "OTROS",
       packSize: item.packSize != null ? String(item.packSize) : "",
       minQty: item.minQty != null ? String(item.minQty) : "",
       reorderHint: item.reorderHint || "",
+      fifoNote: item.fifoNote || "",
     });
   }
 
   async function saveLimits(e: FormEvent) {
     e.preventDefault();
     if (!editItem) return;
+    const name = editForm.name.trim();
+    const baseUnit = editForm.baseUnit.trim();
+    if (!name || !baseUnit) {
+      setError(t("editRequired"));
+      return;
+    }
     setEditSaving(true);
     setError(null);
     try {
@@ -246,9 +260,13 @@ export default function InventarioPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          name,
+          baseUnit,
+          category: editForm.category,
           packSize: editForm.packSize === "" ? null : Number(editForm.packSize),
           minQty: editForm.minQty === "" ? null : Number(editForm.minQty),
           reorderHint: editForm.reorderHint || null,
+          fifoNote: editForm.fifoNote || null,
         }),
       });
       if (!res.ok) {
@@ -392,6 +410,52 @@ export default function InventarioPage() {
       >
         <form onSubmit={saveLimits}>
           <div className="form-grid">
+            <div className="field" style={{ gridColumn: "1 / -1" }}>
+              <label htmlFor="edit-name">{t("fieldName")}</label>
+              <input
+                id="edit-name"
+                required
+                value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                placeholder={t("namePlaceholder")}
+                autoFocus
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="edit-cat">{t("fieldCategory")}</label>
+              <select
+                id="edit-cat"
+                value={editForm.category}
+                onChange={(e) =>
+                  setEditForm({
+                    ...editForm,
+                    category: e.target.value as InsumoCategoria,
+                  })
+                }
+              >
+                {INSUMO_CATEGORIAS.map((c) => (
+                  <option key={c} value={c}>
+                    {tLabels(`insumoCategoria.${c}`)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="edit-unit">{t("fieldUnit")}</label>
+              <select
+                id="edit-unit"
+                value={editForm.baseUnit}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, baseUnit: e.target.value })
+                }
+              >
+                {["kg", "g", "L", "ml", "ud"].map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="field">
               <label htmlFor="edit-pack">{t("fieldPack")}</label>
               <input
@@ -402,7 +466,6 @@ export default function InventarioPage() {
                 value={editForm.packSize}
                 onChange={(e) => setEditForm({ ...editForm, packSize: e.target.value })}
                 placeholder={t("packPlaceholder")}
-                autoFocus
               />
             </div>
             <div className="field">
@@ -426,6 +489,17 @@ export default function InventarioPage() {
                   setEditForm({ ...editForm, reorderHint: e.target.value })
                 }
                 placeholder={t("reorderHintPlaceholder")}
+              />
+            </div>
+            <div className="field" style={{ gridColumn: "1 / -1" }}>
+              <label htmlFor="edit-fifo">{t("fieldFifo")}</label>
+              <input
+                id="edit-fifo"
+                value={editForm.fifoNote}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, fifoNote: e.target.value })
+                }
+                placeholder={t("fifoPlaceholder")}
               />
             </div>
           </div>
