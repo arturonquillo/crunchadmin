@@ -6,6 +6,18 @@ import { createPendingAction } from "@/lib/assistant/confirm-store";
 import { logMutation } from "@/lib/assistant/mutation-log";
 import { ZONE_IDS, type RestaurantZone } from "@/lib/zones";
 import type { InsumoCategoria } from "@/lib/labels";
+import {
+  adsConnectionStatus,
+  adsDailyReportTool,
+  adsInsights,
+  adsListAccounts,
+  adsListHierarchy,
+  adsSelectAccount,
+  adsSetBudget,
+  adsSetStatus,
+  confirmAdsSetBudget,
+  confirmAdsSetStatus,
+} from "@/lib/assistant/ads-execute";
 
 export type ToolResult = {
   ok: boolean;
@@ -716,6 +728,30 @@ export async function executeAssistantTool(
       case "produccion_confirm":
         result = await produccionConfirm(args as never);
         break;
+      case "ads_connection_status":
+        result = await adsConnectionStatus();
+        break;
+      case "ads_list_accounts":
+        result = await adsListAccounts();
+        break;
+      case "ads_select_account":
+        result = await adsSelectAccount(args as never);
+        break;
+      case "ads_list_hierarchy":
+        result = await adsListHierarchy(args as never);
+        break;
+      case "ads_insights":
+        result = await adsInsights(args as never);
+        break;
+      case "ads_set_status":
+        result = await adsSetStatus(args as never);
+        break;
+      case "ads_set_budget":
+        result = await adsSetBudget(args as never);
+        break;
+      case "ads_daily_report":
+        result = await adsDailyReportTool(args as never);
+        break;
       default:
         result = { ok: false, summary: `Herramienta desconocida: ${name}` };
     }
@@ -774,6 +810,12 @@ async function executeConfirmedActionInner(kind: string, payload: Record<string,
     const summary = `Cargué ${items.length} insumo(s) al inventario:\n${summaries.join("\n")}`;
     logMutation({ tool: "inventory_add_many:confirmed", ok: true, summary });
     return { ok: true, summary, data: { count: items.length } };
+  }
+  if (kind === "ads_set_status") {
+    return confirmAdsSetStatus(payload);
+  }
+  if (kind === "ads_set_budget") {
+    return confirmAdsSetBudget(payload);
   }
   if (kind === "produccion_confirm") {
     // Delegate to internal production POST logic via direct prisma (mirror API)
