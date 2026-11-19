@@ -1013,6 +1013,7 @@ export function ChatModule({
           type="file"
           multiple
           className="hablar-file-input"
+          style={{ fontSize: 16 }}
           accept="image/*,.pdf,.txt,.csv,.xls,.xlsx,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
           onChange={(e) => {
             addFiles(e.target.files);
