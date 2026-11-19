@@ -106,6 +106,31 @@ export function AppChrome({
     return () => document.body.classList.remove("drawer-open");
   }, [drawerOpen]);
 
+  /* Keep chat chrome sized to the visible viewport while the soft keyboard is open. */
+  useEffect(() => {
+    if (!isChat) {
+      document.documentElement.style.removeProperty("--app-vvh");
+      return;
+    }
+    const root = document.documentElement;
+    const sync = () => {
+      const vv = window.visualViewport;
+      const h = vv?.height ?? window.innerHeight;
+      root.style.setProperty("--app-vvh", `${Math.round(h)}px`);
+    };
+    sync();
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", sync);
+    vv?.addEventListener("scroll", sync);
+    window.addEventListener("resize", sync);
+    return () => {
+      vv?.removeEventListener("resize", sync);
+      vv?.removeEventListener("scroll", sync);
+      window.removeEventListener("resize", sync);
+      root.style.removeProperty("--app-vvh");
+    };
+  }, [isChat]);
+
   function openHablar() {
     setDrawerOpen(false);
     router.push(`/chat?new=1&speak=1&t=${Date.now()}`);

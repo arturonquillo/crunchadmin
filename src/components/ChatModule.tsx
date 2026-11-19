@@ -1013,6 +1013,7 @@ export function ChatModule({
           type="file"
           multiple
           className="hablar-file-input"
+          style={{ fontSize: 16 }}
           accept="image/*,.pdf,.txt,.csv,.xls,.xlsx,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
           onChange={(e) => {
             addFiles(e.target.files);
@@ -1065,6 +1066,8 @@ export function ChatModule({
               value={text}
               rows={1}
               placeholder={t("placeholder")}
+              /* Inline 16px: guarantees computed size even if CSS cascade regresses */
+              style={{ fontSize: 16 }}
               onChange={(e) => {
                 setText(e.target.value);
                 baseTextRef.current = e.target.value;
