@@ -1065,6 +1065,8 @@ export function ChatModule({
               value={text}
               rows={1}
               placeholder={t("placeholder")}
+              /* Inline 16px: guarantees computed size even if CSS cascade regresses */
+              style={{ fontSize: 16 }}
               onChange={(e) => {
                 setText(e.target.value);
                 baseTextRef.current = e.target.value;

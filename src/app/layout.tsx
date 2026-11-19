@@ -27,10 +27,15 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-/* Prefer 16px inputs over locking pinch-zoom (no maximumScale). */
+/*
+ * Chat/ops UI: keep focus-zoom off on iOS. Absolute 16px on controls is primary;
+ * maximumScale=1 is the reliable Safari backstop when 16px alone still zooms
+ * (observed on lecrunch.com.br/chat). Pinch-zoom remains limited by design here.
+ */
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
   viewportFit: "cover",
   interactiveWidget: "resizes-content",
 };
