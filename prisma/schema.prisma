@@ -279,3 +279,49 @@ model ChatAttachment {
   kind      String // image | audio | file
   createdAt DateTime    @default(now())
 }
+
+/// Meta Marketing API connection (token server-side only; never expose to client)
+model MetaConnection {
+  id             String    @id @default(cuid())
+  provider       String    @default("meta")
+  metaUserId     String
+  metaUserName   String?
+  accessToken    String
+  tokenExpiresAt DateTime?
+  scopes         String    @default("ads_read,ads_management")
+  isMock         Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  accounts MetaAdAccount[]
+}
+
+model MetaAdAccount {
+  id            String   @id @default(cuid())
+  connectionId  String
+  connection    MetaConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  /// Graph form: act_123456
+  actId         String
+  /// Numeric account id without act_ prefix
+  accountId     String
+  name          String
+  currency      String   @default("USD")
+  accountStatus Int      @default(1)
+  isSelected    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([connectionId, actId])
+}
+
+/// Cached Hablar / UI end-of-day ads + ops sketch
+model AdsDailyReport {
+  id           String   @id @default(cuid())
+  actId        String
+  reportDate   String
+  bodyMarkdown String
+  metricsJson  String
+  createdAt    DateTime @default(now())
+
+  @@unique([actId, reportDate])
+}

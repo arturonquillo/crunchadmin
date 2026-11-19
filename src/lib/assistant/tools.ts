@@ -303,18 +303,132 @@ export const ASSISTANT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "ads_connection_status",
+      description:
+        "Estado de Meta Ads: conectado, mock/real, cuenta seleccionada. Lectura segura.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ads_list_accounts",
+      description: "Lista cuentas publicitarias Meta visibles y cuál está seleccionada.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ads_select_account",
+      description: "Selecciona la cuenta publicitaria activa (act_…). Seguro.",
+      parameters: {
+        type: "object",
+        properties: {
+          actId: { type: "string", description: "Ej. act_123 o fragmento del nombre" },
+          nameQuery: { type: "string" },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ads_list_hierarchy",
+      description:
+        "Lista campañas / ad sets / ads con estado y métricas (spend, CTR, CPC, CPA) para un rango.",
+      parameters: {
+        type: "object",
+        properties: {
+          datePreset: {
+            type: "string",
+            description: "today|last_7d|last_30d",
+          },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ads_insights",
+      description: "Resumen de insights de la cuenta seleccionada (gasto, CTR, CPC, CPA).",
+      parameters: {
+        type: "object",
+        properties: {
+          datePreset: { type: "string", description: "today|last_7d|last_30d" },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ads_set_status",
+      description:
+        "Pausa o activa campaña/ad set/ad. DESTRUCTIVO: crea confirmación CONFIRMAR <código>.",
+      parameters: {
+        type: "object",
+        properties: {
+          objectId: { type: "string" },
+          nameQuery: { type: "string" },
+          level: { type: "string", description: "campaign|adset|ad" },
+          status: { type: "string", description: "ACTIVE|PAUSED" },
+        },
+        required: ["status"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ads_set_budget",
+      description:
+        "Cambia presupuesto diario de un ad set (en unidades menores / centavos). DESTRUCTIVO: pide CONFIRMAR.",
+      parameters: {
+        type: "object",
+        properties: {
+          adsetId: { type: "string" },
+          nameQuery: { type: "string" },
+          dailyBudgetMinor: {
+            type: "number",
+            description: "Presupuesto diario en centavos (ej. 8000 = 80.00)",
+          },
+        },
+        required: ["dailyBudgetMinor"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "ads_daily_report",
+      description:
+        "Genera el reporte de fin de día: métricas Ads + sketch ops (pendientes, producción, inventario crítico). Ventas/POS aún stub.",
+      parameters: {
+        type: "object",
+        properties: {
+          date: { type: "string", description: "YYYY-MM-DD opcional (default hoy)" },
+        },
+      },
+    },
+  },
 ];
 
 export const SYSTEM_PROMPT = `Eres el asistente operativo de Crunchadmin (restaurante). Respondé siempre en español.
 
-Tenés acceso de LECTURA completa a la base (recetas con ingredientes, inventario, pendientes, menú, producción) vía herramientas. El contexto del sistema solo trae un resumen corto: NO digas que «solo tenés nombres» ni que «no hay ficha detallada» — si falta detalle, llamá la tool.
+Tenés acceso de LECTURA completa a la base (recetas con ingredientes, inventario, pendientes, menú, producción, Meta Ads) vía herramientas. El contexto del sistema solo trae un resumen corto: NO digas que «solo tenés nombres» ni que «no hay ficha detallada» — si falta detalle, llamá la tool.
 
-OBLIGATORIO: para cualquier pedido de cambio (stock, pendientes, borrar, producción) DEBÉS llamar a la herramienta correspondiente. No digas que lo hiciste si la tool no corrió.
+OBLIGATORIO: para cualquier pedido de cambio (stock, pendientes, borrar, producción, pausar anuncios, presupuesto Ads) DEBÉS llamar a la herramienta correspondiente. No digas que lo hiciste si la tool no corrió.
 
 - Si piden una receta / ficha / ingredientes / «enviame la receta de X»: SIEMPRE llamá receta_get y respondé con TODO lo que devolvió (rendimiento, versión, cada ingrediente con cantidad/unidad/notas, notas/pasos). Prohibido inventar o recortar ingredientes.
-- Acciones seguras (sumar stock, crear pendiente, listar, leer ficha): llamá la tool y reportá el summary que devolvió.
-- Acciones destructivas (borrar insumo, vaciar inventario, borrar pendiente, producción que descuenta): SIEMPRE llamá la tool. Ella te da un código real. Respondé exactamente con ese código: «Para confirmar, respondé con: CONFIRMAR ABC123». NUNCA inventes un código ni escribas «CONFIRMAR <código>» literal.
+- Acciones seguras (sumar stock, crear pendiente, listar, leer ficha, leer Ads): llamá la tool y reportá el summary que devolvió.
+- Acciones destructivas (borrar insumo, vaciar inventario, borrar pendiente, producción que descuenta, ads_set_status, ads_set_budget): SIEMPRE llamá la tool. Ella te da un código real. Respondé exactamente con ese código: «Para confirmar, respondé con: CONFIRMAR ABC123». NUNCA inventes un código ni escribas «CONFIRMAR <código>» literal.
 - Si el dueño ya manda CONFIRMAR <código> o solo «CONFIRMAR», el sistema lo procesa antes; no hace falta tool.
 - PROHIBIDO decir «eliminé / borré / vacié el inventario» si no recibiste un summary real de una tool. Si no hay tool, pedí confirmación o decí que no se ejecutó nada.
+- Ads: no inventes spend/CTR. Si no hay conexión, pedí ir a Anuncios o usá ads_connection_status. Si está en mock, decilo. Para «cómo van los anuncios» / reporte del día usá ads_insights o ads_daily_report.
 - Inferí zonas: salón/salon→salon, cocina→cocina, barra→barra, baño→bano, oficina→oficina, exterior→exterior, entrada→pared_entrada.
 - Adjuntos: las fotos llegan por visión. PDF/Excel/CSV llegan como texto extraído (a veces con «Líneas detectadas»). Si es ticket/factura/lista de compra, extraé nombre+cantidad+unidad y llamá inventory_propose_add_many (pide CONFIRMAR; no sumes stock vos mismo). Un solo ítem hablado («agrega 20 kg de harina») sigue siendo inventory_add_stock. Si no hay texto extraíble, pedí una foto más nítida o un CSV.`;

@@ -94,6 +94,7 @@ export function AppChrome({
     { href: "/produccion", label: t("produccion"), hint: t("produccionHint") },
     { href: "/recetas", label: t("fichas"), hint: t("fichasHint") },
     { href: "/menu", label: t("menuVentas"), hint: t("menuHint") },
+    { href: "/ads", label: t("ads"), hint: t("adsHint") },
     { href: "/ajustes", label: t("ajustes"), hint: t("ajustesHint") },
   ];
 

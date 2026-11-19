@@ -44,6 +44,7 @@ En agentes / demos, `scripts/preview-watchdog.sh` (tmux `crunchadmin-watchdog`) 
 - **Recetas** — ficha + versiones; **escalado** desde rendimiento o cualquier ingrediente base (conversión g/kg, ml/L).
 - **Menú** — ítem base + specs Foodie / tienda propia (pestañas).
 - **Chat** — texto + subida de imagen/archivo; OpenAI si hay `OPENAI_API_KEY`, si no stub amable.
+- **Anuncios (Meta)** — OAuth (o mock), selector de cuenta, campañas/ad sets/ads con spend/CTR/CPC/CPA, pausa/activar; herramientas Hablar + reporte diario. Ver `docs/ads-hostinger-deploy.md`.
 - **Recordatorios / adjuntos de pendientes** — modelos listos; UI mínima / stub.
 
 ## Escalado (ejemplo seed)
@@ -70,6 +71,8 @@ Ver `.env.example`:
 | `DATABASE_URL` | SQLite `file:./dev.db` o PostgreSQL en prod |
 | `OPENAI_API_KEY` | Opcional — chat real |
 | `OPENAI_MODEL` | Default `gpt-4o-mini` |
+| `META_APP_ID` / `META_APP_SECRET` | Opcional — OAuth Meta Ads (sin esto: mock) |
+| `APP_BASE_URL` | Base pública para redirect OAuth |
 | `NEXTAUTH_*` / `CLERK_*` / `NEXT_PUBLIC_SUPABASE_*` | Auth (opcional; MVP single-operator) |
 
 ## Auth
